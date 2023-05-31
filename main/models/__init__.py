@@ -1,3 +1,3 @@
 __all__ = [
-    "log",
+    "log", "user", "category", "item"
 ]
