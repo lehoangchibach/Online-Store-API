@@ -1,0 +1,3 @@
+flask_jwt_extended
+bcrypt
+cryptography

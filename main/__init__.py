@@ -7,6 +7,10 @@ from . import db
 from ._config import config
 from .commons.error_handlers import register_error_handlers
 
+from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
+
 app = Flask(__name__)
 app.config.from_object(config)
 
@@ -34,3 +38,7 @@ register_error_handlers(app)
 @app.teardown_appcontext
 def shutdown_session(*_, **__):  # type: ignore
     db.session.remove()
+
+
+jwt = JWTManager(app)
+migrate = Migrate(app, SQLAlchemy(app))

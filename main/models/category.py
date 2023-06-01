@@ -4,7 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .base import BaseModel, TimestampMixin
 
 
-class Category(BaseModel, TimestampMixin):
+class CategoryModel(BaseModel, TimestampMixin):
     __tablename__ = "category"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

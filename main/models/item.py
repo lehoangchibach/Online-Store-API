@@ -4,7 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .base import BaseModel, TimestampMixin
 
 
-class Item(BaseModel, TimestampMixin):
+class ItemModel(BaseModel, TimestampMixin):
     __tablename__ = "item"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
