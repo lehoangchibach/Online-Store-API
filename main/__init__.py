@@ -10,6 +10,8 @@ from .commons.error_handlers import register_error_handlers
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from .schemas.exceptions import ErrorSchema
+from .commons.exceptions import Unauthorized
 
 app = Flask(__name__)
 app.config.from_object(config)
@@ -42,3 +44,17 @@ def shutdown_session(*_, **__):  # type: ignore
 
 jwt = JWTManager(app)
 migrate = Migrate(app, SQLAlchemy(app))
+
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    response = Unauthorized()
+    response.error_data = {"access_token": "Expired access token"}
+    return response.to_response()
+
+
+@jwt.unauthorized_loader
+def unauthorized_loader_callback(message):
+    response = Unauthorized()
+    response.error_data = {"access_token": message}
+    return response.to_response()

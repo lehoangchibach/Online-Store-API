@@ -1,10 +1,12 @@
 from flask import request
 from marshmallow import ValidationError
-from ..schemas import TokenSchema, UserSchema, ErrorSchema
-from ..models.user import UserModel
-from ..db import session
+from main.schemas import TokenSchema, UserSchema
+from main.models.user import UserModel
+from main.db import session
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import BadRequest as BadRequest_no_body
+from main.commons.exceptions import BadRequest
 import bcrypt
 
 from main import app
@@ -15,11 +17,14 @@ def create_user():
     try:
         user_data = UserSchema().load(request.json)
     except ValidationError as e:
-        return ErrorSchema().dump({
-            "error_code": 400000,
-            "error_data": e.messages,
-            "error_message": "Bad Request"
-        }), 400
+        response = BadRequest()
+        response.error_data = e.messages
+        return response.to_response()
+    except BadRequest_no_body:
+        response = BadRequest()
+        response.error_data = {"email": "DNE",
+                               "password": "DNE"}
+        return response.to_response()
 
     hash_password = bcrypt.hashpw(bytes(user_data["password"], "ascii"), bcrypt.gensalt())
     user = UserModel(
@@ -30,12 +35,10 @@ def create_user():
     try:
         session.add(user)
         session.commit()
-    except IntegrityError as e:
-        return ErrorSchema().dump({
-            "error_code": 400000,
-            "error_data": {"email": "Email already belong to another account."},
-            "error_message": "Bad Request"
-        }), 400
+    except IntegrityError:
+        response = BadRequest()
+        response.error_data = {"email": "Email already belong to another account."}
+        return response.to_response()
 
     access_token = create_access_token(identity=1)
 

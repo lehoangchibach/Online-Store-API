@@ -1,10 +1,12 @@
 from flask import request
 from marshmallow import ValidationError
-from ..schemas import UserSchema, TokenSchema, ErrorSchema
+from main.schemas import UserSchema, TokenSchema
 from flask_jwt_extended import create_access_token
-from ..db import session
-from ..models.user import UserModel
+from main.db import session
+from main.models.user import UserModel
+from main.commons.exceptions import BadRequest, Unauthorized, NotFound
 import bcrypt
+
 
 from main import app
 
@@ -14,22 +16,24 @@ def login():
     try:
         user_data = UserSchema().load(request.json)
     except ValidationError as e:
-        return ErrorSchema().dump({
-            "error_code": 400000,
-            "error_data": e.messages,
-            "error_message": "Bad Request"
-        }), 400
+        response = BadRequest()
+        response.error_data = e.messages
+        return response.to_response()
 
     q = session.query(UserModel).filter_by(email=user_data["email"])
-    user = q.one_or_none()
+    user = q.first()
     if not user:
-        return
+        response = NotFound()
+        response.error_data = {"email": "Not found"}
+        return response.to_response()
 
     is_valid_user = bcrypt.checkpw(bytes(user_data["password"], "ascii"),
                                    bytes(user.password, "ascii"))
 
     if not is_valid_user:
-        return
+        response = Unauthorized()
+        response.error_data = {"password": "Password is not correct"}
+        return response.to_response()
 
-    access_token = create_access_token(identity=1)
+    access_token = create_access_token(identity=user.id)
     return TokenSchema().dump({"access_token": access_token}), 200
