@@ -1,5 +1,5 @@
 from flask import jsonify
-from marshmallow import EXCLUDE, Schema, fields, ValidationError
+from marshmallow import EXCLUDE, Schema, ValidationError, fields
 
 
 class BaseSchema(Schema):
@@ -29,15 +29,20 @@ class NameSchema(fields.Field):
 
         return value
 
-    def _serialize(self, value, attr, data, **kwargs):
+
+class DescriptionSchema(fields.Field):
+    def _deserialize(self, value, attr, data, **kwargs):
+        if len(value) == 0:
+            raise ValidationError("description must have at least 1 character")
         value = value.strip()
         if len(value) == 0:
-            raise ValidationError("name can not contains all white-space")
+            raise ValidationError("description can not contains all white-space")
 
-        if len(value) > 255:
-            raise ValidationError("name can not be longer than 255")
+        if len(value) > 1024:
+            raise ValidationError("description can not be longer than 255")
 
         return value
+
 
 class PasswordSchema(fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):

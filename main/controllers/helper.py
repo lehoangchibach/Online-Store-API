@@ -1,13 +1,15 @@
 def get_ownership(item, identity):
-    item = item.__dict__
-    item["is_creator"] = identity == item["creator_id"]
-    return item
+    result = dict()
+    for key, value in item.__dict__.items():
+        if key == "creator_id":
+            result["is_creator"] = identity == value
+        else:
+            result[key] = value
+    return result
 
 
 def get_ownership_list(items, identity):
     result = []
     for item in items:
-        item = item.__dict__
-        item["is_creator"] = identity == item["creator_id"]
-        result.append(item)
+        result.append(get_ownership(item, identity))
     return result

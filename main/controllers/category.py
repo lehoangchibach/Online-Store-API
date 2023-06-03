@@ -1,15 +1,16 @@
 from flask import request
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request, jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import BadRequest as BadRequest_no_body
 
 from main import app
-from .helper import get_ownership_list
-from main.commons.exceptions import BadRequest, NotFound, Forbidden
+from main.commons.exceptions import BadRequest, Forbidden, NotFound
 from main.db import session
 from main.models.category import CategoryModel
-from main.schemas import CategorySchema, CategoriesSchema
+from main.schemas import CategoriesSchema, CategorySchema
+
+from .helper import get_ownership, get_ownership_list
 
 
 @app.get("/categories")
@@ -20,26 +21,36 @@ def get_categories():
         identity = get_jwt_identity()
 
     try:
-        request_data = CategoriesSchema().load({
-            "page": request.args.get("page_number") or 0,
-            "items_per_page": request.args.get("page_size") or 20
-        })
+        request_data = CategoriesSchema().load(
+            {
+                "page": request.args.get("page_number") or 0,
+                "items_per_page": request.args.get("page_size") or 20,
+            }
+        )
     except ValidationError as e:
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
 
-    q = session.query(CategoryModel).limit(request_data["items_per_page"]) \
+    q = (
+        session.query(CategoryModel)
+        .limit(request_data["items_per_page"])
         .offset(request_data["items_per_page"] * request_data["page"])
+    )
 
     categories = q.all()
 
-    return CategoriesSchema().dump({
-        "categories": get_ownership_list(categories, identity),
-        "items_per_page": request_data["items_per_page"],
-        "page": request_data["page"],
-        "total_items": len(categories)
-    }), 200
+    return (
+        CategoriesSchema().dump(
+            {
+                "categories": get_ownership_list(categories, identity),
+                "items_per_page": request_data["items_per_page"],
+                "page": request_data["page"],
+                "total_items": len(categories),
+            }
+        ),
+        200,
+    )
 
 
 @app.post("/categories")
@@ -57,8 +68,7 @@ def create_category():
         return response.to_response()
 
     identity = get_jwt_identity()
-    category = CategoryModel(**category_data,
-                             creator_id=identity)
+    category = CategoryModel(**category_data, creator_id=identity)
 
     try:
         session.add(category)
@@ -68,24 +78,19 @@ def create_category():
         response.error_data = {"name": "Name already belong to another category"}
         return response.to_response()
 
-    return CategorySchema().dump({
-        "id": category.id,
-        "name": category.name,
-        "is_creator": identity == category.creator_id
-    }), 200
+    session.refresh(category)
+    return CategorySchema().dump(get_ownership(category, identity)), 200
 
 
 @app.delete("/categories/<string:category_id>")
 @jwt_required()
 def delete_category(category_id):
     try:
-        int(category_id)
+        category_id = int(category_id)
     except ValueError:
         response = BadRequest()
         response.error_data = {"item_id": "Not an int"}
         return response.to_response()
-
-    category_id = int(category_id)
 
     category = session.query(CategoryModel).get(category_id)
     if not category:
@@ -101,4 +106,4 @@ def delete_category(category_id):
     session.delete(category)
     session.commit()
 
-    return '', 200
+    return "", 200

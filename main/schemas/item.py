@@ -1,11 +1,12 @@
-from .base import BaseSchema, PaginationSchema
 from marshmallow import fields
+
+from .base import BaseSchema, DescriptionSchema, NameSchema, PaginationSchema
 
 
 class ItemSchema(BaseSchema):
     id = fields.Integer(required=True, dump_only=True)
-    name = fields.String(required=True)
-    description = fields.String(required=True)
+    name = NameSchema(required=True)
+    description = DescriptionSchema(required=True)
     category_id = fields.Integer(required=True)
     is_creator = fields.Boolean(required=True, dump_only=True)
 
