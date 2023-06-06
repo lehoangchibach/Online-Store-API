@@ -8,6 +8,7 @@ from main import app
 from main.commons.exceptions import BadRequest, Forbidden, NotFound
 from main.db import session
 from main.models.category import CategoryModel
+from main.models.item import ItemModel
 from main.schemas import CategoriesSchema, CategorySchema
 
 from .helper import get_ownership, get_ownership_list
@@ -15,6 +16,10 @@ from .helper import get_ownership, get_ownership_list
 
 @app.get("/categories")
 def get_categories():
+    '''
+    Get all categories
+    (Optional): client can provide a JWT token to determine if they are user of a category or not
+    '''
     identity = None
     if request.headers.get("Authorization"):
         verify_jwt_in_request()
@@ -28,6 +33,7 @@ def get_categories():
             }
         )
     except ValidationError as e:
+        # validate query parameter
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
@@ -56,13 +62,18 @@ def get_categories():
 @app.post("/categories")
 @jwt_required()
 def create_category():
+    '''
+    Create a category
+    '''
     try:
         category_data = CategorySchema().load(request.json)
     except ValidationError as e:
+        # validate request data
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
     except BadRequest_no_body:
+        # request with no body
         response = BadRequest()
         response.error_data = {"name": "DNE"}
         return response.to_response()
@@ -74,6 +85,7 @@ def create_category():
         session.add(category)
         session.commit()
     except IntegrityError:
+        # category name has already exist
         response = BadRequest()
         response.error_data = {"name": "Name already belong to another category"}
         return response.to_response()
@@ -85,23 +97,38 @@ def create_category():
 @app.delete("/categories/<string:category_id>")
 @jwt_required()
 def delete_category(category_id):
+    '''
+    Delete a category
+    Must be the creator
+    '''
     try:
         category_id = int(category_id)
     except ValueError:
+        # validate category_id
         response = BadRequest()
-        response.error_data = {"item_id": "Not an int"}
+        response.error_data = {"category_id": "Not an int"}
         return response.to_response()
 
-    category = session.query(CategoryModel).get(category_id)
+    category = session.get(CategoryModel, category_id)
     if not category:
+        # category_id not exist
         response = NotFound()
         response.error_data = {"category_id": "Not found"}
         return response.to_response()
 
     identity = get_jwt_identity()
     if identity != category.creator_id:
+        # client is not the creator
         response = Forbidden()
         return response.to_response()
+
+    q = session.query(ItemModel).filter_by(category_id=category.id)
+    items = q.all()
+
+
+    for item in items:
+        session.delete(item)
+    session.commit()
 
     session.delete(category)
     session.commit()

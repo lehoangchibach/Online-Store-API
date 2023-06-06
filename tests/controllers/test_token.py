@@ -1,4 +1,5 @@
-def test_login(client):
+def test_login(client, session):
+    # assert unsuppored endpoint
     response = client.get("/tokens")
     assert response.status_code == 405
 
@@ -8,61 +9,91 @@ def test_login(client):
     response = client.delete("/tokens")
     assert response.status_code == 405
 
+    # assert request with no body
     response = client.post("/tokens")
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "email" in response_json["error_data"]
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@gmail.com"
+    # assert request with invalid email and password
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
+    response = client.post("/tokens", json={
         "password": "Password"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "email" in response_json["error_data"]
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@gmail.com",
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com",
         "password": 123
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@gmail.com",
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com",
         "password": "123"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@gmail.com",
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com",
         "password": "password"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@gmail.com",
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com",
         "password": "Password"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
+    response = client.post("/tokens", json={
         "email": "@gmail.com",
         "password": "Password"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "email" in response_json["error_data"]
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "testemail@.com",
+    response = client.post("/tokens", json={
+        "email": "test_token@.com",
         "password": "Password"
     })
     assert response.status_code == 400
+    response_json = response.get_json()
+    assert "email" in response_json["error_data"]
+    assert "password" in response_json["error_data"]
 
-    response = client.post("/tokens", data={
-        "email": "lehoangchibach@gmail.com",
-        "password": "Bachbon123"
+    # CREATE USER
+    response = client.post("/users", json={
+        "email": "test_token@gmail.com",
+        "password": "Password123"
     })
     assert response.status_code == 200
 
-    response_data = response.get_json()
-    assert "access_token" in response_data
-
+    # assert successful request
+    response = client.post("/tokens", json={
+        "email": "test_token@gmail.com",
+        "password": "Password123"
+    })
+    assert response.status_code == 200
+    response_json = response.get_json()
+    assert "access_token" in response_json

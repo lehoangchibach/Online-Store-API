@@ -16,6 +16,10 @@ from .helper import get_ownership, get_ownership_list
 
 @app.get("/items")
 def get_items():
+    '''
+    Get all items of a category
+    (Optional) Client can provide a JWT access token to determine ownership
+    '''
     identity = None
     if request.headers.get("Authorization"):
         verify_jwt_in_request()
@@ -30,8 +34,16 @@ def get_items():
             }
         )
     except ValidationError as e:
+        # validate request query parameter
         response = BadRequest()
         response.error_data = e.messages
+        return response.to_response()
+
+    category = session.get(CategoryModel, request_data["category_id"])
+    if not category:
+        # category_id not found
+        response = NotFound()
+        response.error_data = {"category_id": "DNE"}
         return response.to_response()
 
     q = (
@@ -58,6 +70,10 @@ def get_items():
 
 @app.get("/items/<string:item_id>")
 def get_item(item_id):
+    '''
+    Get information of an item
+    (Optional) Client can provide a JWT access token to determine ownership
+    '''
     identity = None
     if request.headers.get("Authorization"):
         verify_jwt_in_request()
@@ -66,13 +82,15 @@ def get_item(item_id):
     try:
         item_id = int(item_id)
     except ValueError:
+        # item_id not an int
         response = BadRequest()
         response.error_data = {"item_id": "Not an int"}
         return response.to_response()
 
-    item = session.query(ItemModel).get(item_id)
+    item = session.get(ItemModel, item_id)
 
     if not item:
+        # item_id not found
         response = NotFound()
         response.error_data = {"item_id": "Not found"}
         return response.to_response()
@@ -83,19 +101,32 @@ def get_item(item_id):
 @app.post("/items")
 @jwt_required()
 def create_item():
+    '''
+    Create an item with an associated category_id
+    '''
     try:
         item_data = ItemSchema().load(request.json)
     except ValidationError as e:
+        # validate request data
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
     except BadRequest_no_body:
+        # request with no body
         response = BadRequest()
         response.error_data = {
             "name": "DNE",
             "description": "DNE",
             "category_id": "DNE",
         }
+        return response.to_response()
+
+    category = session.get(CategoryModel, item_data["category_id"])
+
+    if not category:
+        # category_id not found
+        response = NotFound()
+        response.error_data = {"category_id": "Not found"}
         return response.to_response()
 
     identity = get_jwt_identity()
@@ -105,6 +136,7 @@ def create_item():
         session.add(item)
         session.commit()
     except IntegrityError:
+        # item's name already exists
         response = BadRequest()
         response.error_data = {"name": "Name already belong to another item"}
         return response.to_response()
@@ -116,13 +148,19 @@ def create_item():
 @app.put("/items/<string:item_id>")
 @jwt_required()
 def update_item(item_id):
+    '''
+    Update an item
+    Must be creator
+    '''
     try:
         item_data = ItemSchema().load(request.json)
     except ValidationError as e:
+        # validate request data
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
     except BadRequest_no_body:
+        # request data with no body
         response = BadRequest()
         response.error_data = {
             "name": "DNE",
@@ -134,24 +172,28 @@ def update_item(item_id):
     try:
         item_id = int(item_id)
     except ValueError:
+        # item_id is not int
         response = BadRequest()
         response.error_data = {"item_id": "Not an int"}
         return response.to_response()
 
-    category = session.query(CategoryModel).get(item_data["category_id"])
+    category = session.get(CategoryModel, item_data["category_id"])
 
     if not category:
+        # category_id not found
         response = NotFound()
         response.error_data = {"category_id": "Not found"}
         return response.to_response()
 
     identity = get_jwt_identity()
-    item = session.query(ItemModel).get(item_id)
+    item = session.get(ItemModel, item_id)
 
     if not item:
+        # item_id not found, then create new item
         item = ItemModel(**item_data, id=item_id, creator_id=identity)
 
     if identity != item.creator_id:
+        # action forbidden (not creator)
         response = Forbidden()
         return response.to_response()
 
@@ -162,6 +204,7 @@ def update_item(item_id):
         session.add(item)
         session.commit()
     except IntegrityError:
+        # item's already exist
         response = BadRequest()
         response.error_data = {"name": "Name already belong to another item"}
         return response.to_response()
@@ -173,22 +216,29 @@ def update_item(item_id):
 @app.delete("/items/<string:item_id>")
 @jwt_required()
 def delete_item(item_id):
+    '''
+    Delete an item
+    Must be the creator
+    '''
     try:
         item_id = int(item_id)
     except ValueError:
+        # item_id is not int
         response = BadRequest()
         response.error_data = {"item_id": "Not an int"}
         return response.to_response()
 
-    item = session.query(ItemModel).get(item_id)
+    item = session.get(ItemModel, item_id)
 
     if not item:
+        # item_id not found
         response = NotFound()
         response.error_data = {"item_id": "Not found"}
         return response.to_response()
 
     identity = get_jwt_identity()
     if identity != item.creator_id:
+        # action forbidden (not the creator)
         response = Forbidden()
         return response.to_response()
 

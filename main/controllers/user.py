@@ -14,13 +14,18 @@ from main import app
 
 @app.post("/users")
 def create_user():
+    '''
+    Create a new user with unique email address
+    '''
     try:
         user_data = UserSchema().load(request.json)
     except ValidationError as e:
+        # validate email address and password
         response = BadRequest()
         response.error_data = e.messages
         return response.to_response()
     except BadRequest_no_body:
+        # request with no body
         response = BadRequest()
         response.error_data = {"email": "DNE",
                                "password": "DNE"}
@@ -36,10 +41,12 @@ def create_user():
         session.add(user)
         session.commit()
     except IntegrityError:
+        # email address has already existed
         response = BadRequest()
         response.error_data = {"email": "Email already belong to another account."}
         return response.to_response()
 
-    access_token = create_access_token(identity=1)
+    session.refresh(user)
+    access_token = create_access_token(identity=user.id)
 
     return TokenSchema().dump({"access_token": access_token}), 200
