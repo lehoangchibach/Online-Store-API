@@ -46,7 +46,8 @@ def create_user():
         response.error_data = {"email": "Email already belong to another account."}
         return response.to_response()
 
-    session.refresh(user)
+
+    # session.refresh(user)
     access_token = create_access_token(identity=user.id)
 
     return TokenSchema().dump({"access_token": access_token}), 200

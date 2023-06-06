@@ -10,3 +10,4 @@ class UserModel(BaseModel, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(VARCHAR(320), nullable=False, unique=True)
     password: Mapped[str] = mapped_column(CHAR(60), nullable=False)
+

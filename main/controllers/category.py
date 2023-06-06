@@ -125,7 +125,6 @@ def delete_category(category_id):
     q = session.query(ItemModel).filter_by(category_id=category.id)
     items = q.all()
 
-
     for item in items:
         session.delete(item)
     session.commit()
@@ -133,4 +132,4 @@ def delete_category(category_id):
     session.delete(category)
     session.commit()
 
-    return "", 200
+    return {}, 200

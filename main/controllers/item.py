@@ -209,7 +209,7 @@ def update_item(item_id):
         response.error_data = {"name": "Name already belong to another item"}
         return response.to_response()
 
-    session.refresh(item)
+    # session.refresh(item)
     return ItemSchema().dump(get_ownership(item, identity)), 200
 
 
@@ -245,4 +245,4 @@ def delete_item(item_id):
     session.delete(item)
     session.commit()
 
-    return "", 200
+    return {}, 200
