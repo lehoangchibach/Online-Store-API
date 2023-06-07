@@ -49,7 +49,7 @@ def register_error_handlers(app):
         logger.exception(message=str(e))
 
         # return InternalServerError(error_message=str(e)).to_response()
-        return InternalServerError(error_message="Internal Server Error").to_response()
+        return InternalServerError(error_message="Internal Server Error.").to_response()
 
 
 def register_jwt_error_handler(jwt):
