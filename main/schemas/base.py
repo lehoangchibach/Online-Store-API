@@ -11,36 +11,36 @@ class BaseSchema(Schema):
 
 
 class PaginationSchema(BaseSchema):
-    items_per_page = fields.Integer()
-    page = fields.Integer()
-    total_items = fields.Integer()
+    items_per_page = fields.Integer(load_default=20, validate=lambda x: x >= 0)
+    page = fields.Integer(load_default=0, validate=lambda x: x >= 0)
+    total_items = fields.Integer(dump_only=True)
 
 
-class NameSchema(fields.Field):
+class NameField(fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):
+        if not isinstance(value, str):
+            raise ValidationError("Name must be a string.")
         if len(value) == 0:
-            raise ValidationError("name must have at least 1 character")
+            raise ValidationError("Name must have at least 1 character.")
         value = value.strip()
         if len(value) == 0:
-            raise ValidationError("name can not contains all white-space")
-
+            raise ValidationError("Name can not contains all white-space.")
         if len(value) > 255:
-            raise ValidationError("name can not be longer than 255")
-
+            raise ValidationError("Name can not be longer than 255.")
         return value
 
 
-class DescriptionSchema(fields.Field):
+class DescriptionField(fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):
+        if not isinstance(value, str):
+            raise ValidationError("Description must be a string.")
         if len(value) == 0:
-            raise ValidationError("description must have at least 1 character")
+            raise ValidationError("Description must have at least 1 character.")
         value = value.strip()
         if len(value) == 0:
-            raise ValidationError("description can not contains all white-space")
-
+            raise ValidationError("Description can not contains all white-space.")
         if len(value) > 1024:
-            raise ValidationError("description can not be longer than 255")
-
+            raise ValidationError("Description can not be longer than 1024.")
         return value
 
 

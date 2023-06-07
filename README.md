@@ -20,7 +20,6 @@ source ./venv/bin/activate
 
 ```shell
 poetry install
-pip install -r requirements.txt
 ```
 
 ### Install `pre-commit` hooks

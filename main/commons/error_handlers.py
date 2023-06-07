@@ -25,8 +25,8 @@ def register_error_handlers(app):
 
         status_code = error.status_code
         if (
-                isinstance(status_code, int)
-                and status_code != StatusCode.INTERNAL_SERVER_ERROR
+            isinstance(status_code, int)
+            and status_code != StatusCode.INTERNAL_SERVER_ERROR
         ):
             logging_method = logger.warning
         else:
@@ -55,12 +55,18 @@ def register_error_handlers(app):
 def register_jwt_error_handler(jwt):
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        response = Unauthorized()
-        response.error_data = {"access_token": "Expired access token"}
-        return response.to_response()
+        return Unauthorized(
+            error_data={}, error_message="Your access token has expired."
+        ).to_response()
 
     @jwt.unauthorized_loader
     def unauthorized_loader_callback(message):
-        response = Unauthorized()
-        response.error_data = {"access_token": message}
-        return response.to_response()
+        return Unauthorized(
+            error_data={}, error_message="An access token is required."
+        ).to_response()
+
+    @jwt.invalid_token_loader
+    def invalid_token_loader_callback(message):
+        return Unauthorized(
+            error_data={}, error_message="Not a valid access token."
+        ).to_response()
