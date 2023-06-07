@@ -2,16 +2,15 @@ from importlib import import_module
 
 from flask import Flask
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 
 from . import db
 from ._config import config
 from .commons.error_handlers import register_error_handlers, register_jwt_error_handler
-
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate
-from .schemas.exceptions import ErrorSchema
 from .commons.exceptions import Unauthorized
+from .schemas.exceptions import ErrorSchema
 
 app = Flask(__name__)
 app.config.from_object(config)

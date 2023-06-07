@@ -44,7 +44,7 @@ class DescriptionSchema(fields.Field):
         return value
 
 
-class PasswordSchema(fields.Field):
+class PasswordField(fields.String):
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, str):
             raise ValidationError("Password must be a string.")

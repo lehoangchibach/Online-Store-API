@@ -7,6 +7,7 @@ from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import BadRequest as BadRequest_no_body
 from main.commons.exceptions import BadRequest
+from .helper import load_json
 import bcrypt
 
 from main import app
@@ -17,6 +18,7 @@ def create_user():
     '''
     Create a new user with unique email address
     '''
+    user_data = load_json(UserSchema(), request)
     try:
         user_data = UserSchema().load(request.json)
     except ValidationError as e:
@@ -31,23 +33,20 @@ def create_user():
                                "password": "DNE"}
         return response.to_response()
 
-    hash_password = bcrypt.hashpw(bytes(user_data["password"], "ascii"), bcrypt.gensalt())
+    hash_password = bcrypt.hashpw(bytes(user_data["password"], "utf-8"), bcrypt.gensalt())
     user = UserModel(
         email=user_data["email"],
         password=hash_password
     )
 
-    try:
-        session.add(user)
-        session.commit()
-    except IntegrityError:
-        # email address has already existed
-        response = BadRequest()
-        response.error_data = {"email": "Email already belong to another account."}
-        return response.to_response()
+    # if account with the email has already exist
+    user_with_similar_email = session.query(UserModel).filter_by(email=user_data["email"])
+    if user_with_similar_email:
+        raise BadRequest(error_data={"email": ["Email already belong to another account."]})
 
+    session.add(user)
+    session.commit()
 
-    # session.refresh(user)
     access_token = create_access_token(identity=user.id)
 
     return TokenSchema().dump({"access_token": access_token}), 200

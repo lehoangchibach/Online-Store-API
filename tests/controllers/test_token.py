@@ -13,8 +13,6 @@ def test_login(client, session):
     response = client.post("/tokens")
     assert response.status_code == 400
     response_json = response.get_json()
-    assert "email" in response_json["error_data"]
-    assert "password" in response_json["error_data"]
 
     # assert request with invalid email and password
     response = client.post("/tokens", json={

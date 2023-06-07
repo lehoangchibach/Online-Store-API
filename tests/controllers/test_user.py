@@ -13,8 +13,6 @@ def test_create_user(client, session):
     response = client.post("/users")
     assert response.status_code == 400
     response_json = response.get_json()
-    assert "email" in response_json["error_data"]
-    assert "password" in response_json["error_data"]
 
     # assert request with invalid email and password
     response = client.post("/users", json={

@@ -1,13 +1,11 @@
 from flask import request
-from marshmallow import ValidationError
 from main.schemas import UserSchema, TokenSchema
 from flask_jwt_extended import create_access_token
 from main.db import session
 from main.models.user import UserModel
-from main.commons.exceptions import BadRequest, Unauthorized, NotFound
-from werkzeug.exceptions import BadRequest as BadRequest_no_body
+from main.commons.exceptions import Unauthorized, NotFound
+from .helper import load_json
 import bcrypt
-
 
 from main import app
 
@@ -17,38 +15,21 @@ def login():
     '''
     Login user and return a JWT access token
     '''
-    try:
-        user_data = UserSchema().load(request.json)
-    except ValidationError as e:
-        # validate email address and password
-        response = BadRequest()
-        response.error_data = e.messages
-        return response.to_response()
-    except BadRequest_no_body:
-        # check request with no body
-        response = BadRequest()
-        response.error_data = {
-            "email": "DNE",
-            "password": "DNE"
-        }
-        return response.to_response()
+    user_data = load_json(UserSchema(), request)
 
-    q = session.query(UserModel).filter_by(email=user_data["email"])
-    user = q.first()
+    user = session.query(UserModel).filter_by(email=user_data["email"]).first()
     if not user:
         # request's credential does not exist
-        response = NotFound()
-        response.error_data = {"email": "Not found"}
-        return response.to_response()
+        raise NotFound(error_data={},
+                       error_message="Email or password is not correct.")
 
-    is_valid_user = bcrypt.checkpw(bytes(user_data["password"], "ascii"),
-                                   bytes(user.password, "ascii"))
+    is_password_correct = bcrypt.checkpw(bytes(user_data["password"], "utf-8"),
+                                         bytes(user.password, "utf-8"))
 
-    if not is_valid_user:
+    if not is_password_correct:
         # password is not correct
-        response = Unauthorized()
-        response.error_data = {"password": "Password is not correct"}
-        return response.to_response()
+        raise Unauthorized(error_data={},
+                           error_message="Email or password is not correct.")
 
     access_token = create_access_token(identity=user.id)
     return TokenSchema().dump({"access_token": access_token}), 200
