@@ -4,6 +4,7 @@ from .exceptions import (
     MethodNotAllowed,
     NotFound,
     StatusCode,
+    Unauthorized
 )
 
 
@@ -24,8 +25,8 @@ def register_error_handlers(app):
 
         status_code = error.status_code
         if (
-            isinstance(status_code, int)
-            and status_code != StatusCode.INTERNAL_SERVER_ERROR
+                isinstance(status_code, int)
+                and status_code != StatusCode.INTERNAL_SERVER_ERROR
         ):
             logging_method = logger.warning
         else:
@@ -48,3 +49,17 @@ def register_error_handlers(app):
         logger.exception(message=str(e))
 
         return InternalServerError(error_message=str(e)).to_response()
+
+
+def register_jwt_error_handler(jwt):
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        response = Unauthorized()
+        response.error_data = {"access_token": "Expired access token"}
+        return response.to_response()
+
+    @jwt.unauthorized_loader
+    def unauthorized_loader_callback(message):
+        response = Unauthorized()
+        response.error_data = {"access_token": message}
+        return response.to_response()

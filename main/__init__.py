@@ -5,7 +5,7 @@ from flask_cors import CORS
 
 from . import db
 from ._config import config
-from .commons.error_handlers import register_error_handlers
+from .commons.error_handlers import register_error_handlers, register_jwt_error_handler
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
@@ -17,6 +17,9 @@ app = Flask(__name__)
 app.config.from_object(config)
 
 CORS(app)
+
+jwt = JWTManager(app)
+migrate = Migrate(app, SQLAlchemy(app))
 
 
 def register_subpackages() -> None:
@@ -30,6 +33,7 @@ def register_subpackages() -> None:
 
 register_subpackages()
 register_error_handlers(app)
+register_jwt_error_handler(jwt)
 
 
 # https://flask.palletsprojects.com/en/2.2.x/patterns/sqlalchemy/#declarative
@@ -40,21 +44,3 @@ register_error_handlers(app)
 @app.teardown_appcontext
 def shutdown_session(*_, **__):  # type: ignore
     db.session.remove()
-
-
-jwt = JWTManager(app)
-migrate = Migrate(app, SQLAlchemy(app))
-
-
-@jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
-    response = Unauthorized()
-    response.error_data = {"access_token": "Expired access token"}
-    return response.to_response()
-
-
-@jwt.unauthorized_loader
-def unauthorized_loader_callback(message):
-    response = Unauthorized()
-    response.error_data = {"access_token": message}
-    return response.to_response()
