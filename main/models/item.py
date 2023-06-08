@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, VARCHAR, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import BaseModel, TimestampMixin
 

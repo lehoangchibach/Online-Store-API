@@ -1,6 +1,6 @@
-from .category import CategorySchema, CategoriesSchema
+from .category import CategoryLoadSchema, CategoryDumpSchema, CategoriesDumpSchema
 from .exceptions import ErrorSchema
-from .item import ItemSchema, ItemsSchema
-from .user import UserSchema
-from .token import TokenSchema
+from .item import ItemLoadSchema, ItemsLoadSchema, ItemDumpSchema, ItemsDumpSchema
+from .user import UserLoadSchema
+from .token import TokenDumpSchema
 from .base import PaginationSchema

@@ -6,7 +6,7 @@ from main import app
 from main.commons.exceptions import NotFound, Unauthorized
 from main.db import session
 from main.models.user import UserModel
-from main.schemas import TokenSchema, UserSchema
+from main.schemas import TokenDumpSchema, UserLoadSchema
 
 from .helper import load_json
 
@@ -16,7 +16,7 @@ def login():
     """
     Login user and return a JWT access token
     """
-    user_data = load_json(UserSchema(), request)
+    user_data = load_json(UserLoadSchema(), request)
 
     user = session.query(UserModel).filter_by(email=user_data["email"]).first()
     if not user:
@@ -34,4 +34,4 @@ def login():
         )
 
     access_token = create_access_token(identity=user.id)
-    return TokenSchema().dump({"access_token": access_token})
+    return TokenDumpSchema().dump({"access_token": access_token})
