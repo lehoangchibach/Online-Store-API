@@ -1,24 +1,21 @@
+import datetime
 import os
 import sys
-from importlib import import_module
 from pathlib import Path
 
+import bcrypt
 import pytest
-from alembic.command import upgrade
 from alembic.config import Config
-from sqlalchemy import text, create_engine
+from flask_jwt_extended import create_access_token
+from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 
 from main import app as _app
 from main import db
-from main import migrate
 from main.libs.log import ServiceLogger
-
-from main.models.user import UserModel
-from main.models.category import CategoryModel
-from main.models.item import ItemModel
 from main.models.base import BaseModel
-from sqlalchemy.schema import MetaData
+from main.models.category import CategoryModel
+from main.models.user import UserModel
 
 logger = ServiceLogger(__name__)
 
@@ -41,10 +38,11 @@ def app():
 
 @pytest.fixture(scope="session", autouse=True)
 def create_database(app):
-    alembic_config = Config(ALEMBIC_CONFIG)
+    Config(ALEMBIC_CONFIG)
     # upgrade(alembic_config, "heads")
 
     from main._config import config
+
     engine = create_engine(
         url=config.SQLALCHEMY_DATABASE_URI,
         **config.SQLALCHEMY_ENGINE_OPTIONS,
@@ -73,3 +71,64 @@ def session():
 @pytest.fixture(scope="function", autouse=True)
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def create_fixture_users():
+    user_datas = [
+        {"email": "testemail@gmail.com", "password": "Password123"},
+        {"email": "second_testemail@gmail.com", "password": "Password123"},
+    ]
+
+    for user_data in user_datas:
+        hash_password = bcrypt.hashpw(
+            bytes(user_data["password"], "utf-8"), bcrypt.gensalt()
+        )
+        user = UserModel(email=user_data["email"], password=hash_password)
+        db.session.add(user)
+
+    db.session.commit()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def create_fixture_category(create_fixture_users):
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    category = CategoryModel(name="fixture_category", creator_id=user.id)
+    db.session.add(category)
+    db.session.commit()
+
+
+@pytest.fixture
+def get_fixture_valid_access_token():
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    return create_access_token(identity=user.id)
+
+
+@pytest.fixture
+def get_fixture_invalid_access_token():
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    return create_access_token(
+        identity=user.id, expires_delta=datetime.timedelta(seconds=-1)
+    )
+
+
+@pytest.fixture
+def get_fixture_category():
+    category = (
+        db.session.query(CategoryModel).filter_by(name="fixture_category").first()
+    )
+    return category
+
+
+@pytest.fixture
+def create_category_for_delete(create_fixture_users):
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    category_names = ["create_category_for_delete1", "create_category_for_delete2"]
+    categories = []
+    for name in category_names:
+        category = CategoryModel(name=name, creator_id=user.id)
+        categories.append(category)
+        db.session.add(category)
+    db.session.commit()
+
+    return [category.id for category in categories]

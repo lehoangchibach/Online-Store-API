@@ -6,20 +6,26 @@ from main.commons.exceptions import BadRequest, Forbidden, NotFound
 from main.db import session
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
-from main.schemas import ItemLoadSchema, ItemsLoadSchema, ItemDumpSchema, ItemsDumpSchema
+from main.schemas import (
+    ItemDumpSchema,
+    ItemLoadSchema,
+    ItemsDumpSchema,
+    ItemsLoadSchema,
+)
 
-from .helper import get_ownership_item, get_ownership_list_item, load_json, validate_id
+from ..commons.decorators import get_by_id, get_identity
+from .helper import load_json, validate_id
 
 
 @app.get("/items")
 @jwt_required(optional=True)
-def get_items():
+@get_identity
+def get_items(identity):
     """
     Get all items of a category
     (Optional) Client can provide a JWT access token to determine ownership
     """
-    identity = get_jwt_identity()
-    request_data = load_json(ItemsLoadSchema(), None, request_data=request.args)
+    request_data = load_json(ItemsLoadSchema(), request)
 
     query = session.query(ItemModel)
 
@@ -27,7 +33,7 @@ def get_items():
         # assert if category_id exists
         category = session.get(CategoryModel, request_data["category_id"])
         if not category:
-            raise NotFound(error_data={"category_id": ["Not found."]})
+            raise NotFound(error_message="Category_id not found.")
         query = query.filter_by(category_id=request_data["category_id"])
 
     items = (
@@ -37,41 +43,36 @@ def get_items():
     )
     total_items_count = session.query(ItemModel).count()
 
-    return (
-        ItemsDumpSchema().dump(
-            {
-                "items": get_ownership_list_item(items, identity),
-                "items_per_page": request_data["items_per_page"],
-                "page": request_data["page"],
-                "total_items": total_items_count,
-            }
-        ),
-        200,
+    for item in items:
+        item.is_creator = identity == item.creator_id
+    return ItemsDumpSchema().dump(
+        {
+            "items": items,
+            "items_per_page": request_data["items_per_page"],
+            "page": request_data["page"],
+            "total_items": total_items_count,
+        }
     )
 
 
-@app.get("/items/<string:item_id>")
+@app.get("/items/<int:item_id>")
 @jwt_required(optional=True)
-def get_item(item_id):
+@get_by_id(ItemModel, "item_id")
+@get_identity
+def get_item(identity, item, item_id):
     """
     Get information of an item
     (Optional) Client can provide a JWT access token to determine ownership
     """
-    identity = get_jwt_identity()
-    item_id = validate_id(item_id, "item_id")
 
-    item = session.get(ItemModel, item_id)
-
-    if not item:
-        # item_id not found
-        raise NotFound(error_data={"item_id": ["Not found."]})
-
-    return ItemDumpSchema().dump(get_ownership_item(item, identity))
+    item.is_creator = identity == item.creator_id
+    return ItemDumpSchema().dump(item)
 
 
 @app.post("/items")
 @jwt_required()
-def create_item():
+@get_identity
+def create_item(identity):
     """
     Create an item with an associated category_id
     """
@@ -80,26 +81,26 @@ def create_item():
     category = session.get(CategoryModel, item_data["category_id"])
     if not category:
         # category_id not found
-        raise NotFound(error_data={"category_id": ["Not found."]})
+        raise BadRequest(error_message="Category_id not found.")
 
-    item_with_similar_name = (
-        session.query(ItemModel).filter_by(name=item_data["name"]).first()
-    )
-    if item_with_similar_name:
+    existing_item = session.query(ItemModel).filter_by(name=item_data["name"]).first()
+    if existing_item:
         raise BadRequest(error_data={"name": ["Name already belong to another item."]})
 
-    identity = get_jwt_identity()
     item = ItemModel(**item_data, creator_id=identity)
 
     session.add(item)
     session.commit()
 
-    session.refresh(item)
-    return ItemDumpSchema().dump(get_ownership_item(item, identity))
+    item.is_creator = identity == item.creator_id
+    return ItemDumpSchema().dump(item)
 
 
-@app.put("/items/<string:item_id>")
+@app.put("/items/<int:item_id>")
 @jwt_required()
+# @get_by_id(ItemModel, "item_id")
+# @get_identity
+# def update_item(identity, item, item_id):
 def update_item(item_id):
     """
     Update an item
@@ -109,15 +110,15 @@ def update_item(item_id):
     item_data = load_json(ItemLoadSchema(), request)
     item_id = validate_id(item_id, "item_id")
 
+    item = session.get(ItemModel, item_id)
+    if not item:
+        # item_id not found, then not create new item
+        raise NotFound(error_message="Item_id not found.")
+
     category = session.get(CategoryModel, item_data["category_id"])
     if not category:
         # category_id not found
-        raise NotFound(error_data={"category_id": ["Not found."]})
-
-    item = session.get(ItemModel, item_id)
-    if not item:
-        # item_id not found, then create new item
-        raise NotFound(error_data={"item_id": ["Not found."]})
+        raise BadRequest(error_message="Category_id not found.")
 
     if identity != item.creator_id:
         # action forbidden (not creator)
@@ -132,14 +133,13 @@ def update_item(item_id):
     for key, value in item_data.items():
         setattr(item, key, value)
 
-    session.add(item)
     session.commit()
 
-    session.refresh(item)
-    return ItemDumpSchema().dump(get_ownership_item(item, identity))
+    item.is_creator = identity == item.creator_id
+    return ItemDumpSchema().dump(item)
 
 
-@app.delete("/items/<string:item_id>")
+@app.delete("/items/<int:item_id>")
 @jwt_required()
 def delete_item(item_id):
     """
@@ -153,7 +153,7 @@ def delete_item(item_id):
 
     if not item:
         # item_id not found
-        raise NotFound(error_data={"item_id": ["Not found."]})
+        raise NotFound(error_message="Item_id not found.")
 
     if identity != item.creator_id:
         # action forbidden (not the creator)

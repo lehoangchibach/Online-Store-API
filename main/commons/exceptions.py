@@ -39,7 +39,7 @@ class BaseError(Exception):
         self,
         *,
         error_message=None,
-        error_data={},
+        error_data=None,
         status_code: Optional[int] = None,
         error_code: Optional[int] = None,
     ):

@@ -24,13 +24,9 @@ def create_user():
     user = UserModel(email=user_data["email"], password=hash_password)
 
     # if account with the email has already exist
-    user_with_similar_email = (
-        session.query(UserModel).filter_by(email=user_data["email"]).first()
-    )
-    if user_with_similar_email:
-        raise BadRequest(
-            error_data={}, error_message="Email already belong to another account."
-        )
+    existing_user = session.query(UserModel).filter_by(email=user_data["email"]).first()
+    if existing_user:
+        raise BadRequest(error_message="Email already belong to another account.")
 
     session.add(user)
     session.commit()
