@@ -1,5 +1,5 @@
 from flask import request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 
 from main import app
 from main.commons.exceptions import BadRequest, Forbidden, NotFound
@@ -14,7 +14,7 @@ from main.schemas import (
 )
 
 from ..commons.decorators import get_by_id, get_identity
-from .helper import load_json, validate_id
+from .helper import load_json
 
 
 @app.get("/items")
@@ -98,22 +98,14 @@ def create_item(identity):
 
 @app.put("/items/<int:item_id>")
 @jwt_required()
-# @get_by_id(ItemModel, "item_id")
-# @get_identity
-# def update_item(identity, item, item_id):
-def update_item(item_id):
+@get_by_id(ItemModel, "item_id")
+@get_identity
+def update_item(identity, item, item_id):
     """
     Update an item
     Must be creator
     """
-    identity = get_jwt_identity()
     item_data = load_json(ItemLoadSchema(), request)
-    item_id = validate_id(item_id, "item_id")
-
-    item = session.get(ItemModel, item_id)
-    if not item:
-        # item_id not found, then not create new item
-        raise NotFound(error_message="Item_id not found.")
 
     category = session.get(CategoryModel, item_data["category_id"])
     if not category:
@@ -141,20 +133,13 @@ def update_item(item_id):
 
 @app.delete("/items/<int:item_id>")
 @jwt_required()
-def delete_item(item_id):
+@get_by_id(ItemModel, "item_id")
+@get_identity
+def delete_item(identity, item, item_id):
     """
     Delete an item
     Must be the creator
     """
-    identity = get_jwt_identity()
-    item_id = validate_id(item_id, "item_id")
-
-    item = session.get(ItemModel, item_id)
-
-    if not item:
-        # item_id not found
-        raise NotFound(error_message="Item_id not found.")
-
     if identity != item.creator_id:
         # action forbidden (not the creator)
         raise Forbidden()

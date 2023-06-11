@@ -1,46 +1,22 @@
+from typing import Any, Dict
+
+from flask import Request
 from marshmallow import ValidationError
 from werkzeug.exceptions import BadRequest as InvalidJsonBody
 
 from main.commons.exceptions import BadRequest
+from main.schemas.base import BaseSchema
 
 
-def load_json(schema, request):
+def load_json(schema: BaseSchema, request: Request) -> Dict[str, Any]:
     try:
         if request.method == "GET":
             data = schema.load(request.args)
         else:
             data = schema.load(request.get_json())
     except ValidationError as e:
-        # validate email address and password
         raise BadRequest(error_data=e.messages)
     except InvalidJsonBody:
-        # check request with no body
-        raise BadRequest(error_message="Request's body is not a json.")
+        # check request with invalid json body
+        raise BadRequest(error_message="Request's body is not a valid json.")
     return data
-
-
-def validate_id(object_id, if_field_name):
-    try:
-        object_id = int(object_id)
-    except ValueError:
-        # validate id
-        raise BadRequest(error_data={if_field_name: ["Id is not an integer."]})
-    if object_id < 0:
-        raise BadRequest(
-            error_data={if_field_name: ["Id can not be a negative integer."]}
-        )
-    return object_id
-
-
-def get_ownership_item(item, user_id):
-    result = dict()
-    for key, value in item.__dict__.items():
-        if key == "creator_id":
-            result["is_creator"] = user_id == value
-        else:
-            result[key] = value
-    return result
-
-
-def get_ownership_list_items(items, user_id):
-    return [get_ownership_item(item, user_id) for item in items]

@@ -1,13 +1,15 @@
 from functools import wraps
+from typing import Type
 
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 
 from main.commons.exceptions import NotFound
 from main.db import session
+from main.models.base import BaseModel
 
 
-def get_by_id(model, path_variable):
+def get_by_id(model: Type[BaseModel], path_variable: str):
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):

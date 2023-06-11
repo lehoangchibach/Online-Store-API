@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_get_items_successfully_with_nothing(client):
     response = client.get("/items")
     response_json = response.get_json()
@@ -11,7 +14,6 @@ def test_get_items_successfully_with_nothing(client):
 
 
 def test_get_items_successfully_with_query_parameters(client, get_fixture_category):
-    # assert success request
     query_string = {
         "category_id": get_fixture_category.id,
         "page": 4,
@@ -29,7 +31,7 @@ def test_get_items_successfully_with_query_parameters(client, get_fixture_catego
     assert response_json["page"] == 4
 
 
-def test_get_items_successfully_with_access_token(
+def test_get_items_successfully_with_valid_access_token(
     client, get_fixture_valid_access_token_user_1
 ):
     response = client.get(
@@ -44,165 +46,132 @@ def test_get_items_successfully_with_access_token(
     assert "total_items" in response_json
 
 
-def test_get_items_invalid_page(client, session):
-    response = client.get("/items", query_string={"page": "string"})
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        ({"page": "string"}, "Not a valid integer."),
+        ({"page": -4}, "Must be greater than or equal to 1."),
+    ],
+)
+def test_get_items_failed_invalid_page_parameter(test_input, expected_message, client):
+    response = client.get("/items", query_string=test_input)
     response_json = response.get_json()
+
     assert response.status_code == 400
     assert "page" in response_json["error_data"]
+    assert response_json["error_data"]["page"][0] == expected_message
 
-    response = client.get("/items", query_string={"page": -4})
+
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        ({"items_per_page": "string"}, "Not a valid integer."),
+        ({"items_per_page": -4}, "Must be greater than or equal to 1."),
+    ],
+)
+def test_get_items_failed_invalid_items_per_page_parameter(
+    test_input, expected_message, client
+):
+    response = client.get("/items", query_string=test_input)
     response_json = response.get_json()
-    assert response.status_code == 400
-    assert "page" in response_json["error_data"]
 
-
-def test_get_items_invalid_items_per_page(client, session):
-    response = client.get("/items", query_string={"items_per_page": "string"})
-    response_json = response.get_json()
     assert response.status_code == 400
     assert "items_per_page" in response_json["error_data"]
+    assert response_json["error_data"]["items_per_page"][0] == expected_message
 
-    response = client.get("/items", query_string={"items_per_page": -4})
+
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [("20a", "Not a valid integer."), (-20, "Must be greater than or equal to 0.")],
+)
+def test_get_items_failed_invalid_category_id_parameter(
+    test_input, expected_message, client
+):
+    response = client.get("/items", query_string={"category_id": test_input})
     response_json = response.get_json()
-    assert response.status_code == 400
-    assert "items_per_page" in response_json["error_data"]
 
-
-def test_get_items_invalid_category_id(client, session):
-    response = client.get("/items", query_string={"category_id": "12a"})
-    response_json = response.get_json()
-    assert response.status_code == 400
-    assert "category_id" in response_json["error_data"]
-
-    response = client.get("/items", query_string={"category_id": -4})
-    response_json = response.get_json()
     assert response.status_code == 400
     assert "category_id" in response_json["error_data"]
+    assert response_json["error_data"]["category_id"][0] == expected_message
 
 
-def test_get_items_not_found_category_id(client, session):
+def test_get_items_failed_category_id_not_found(client, session):
     response = client.get("/items", query_string={"category_id": 10000})
-    response.get_json()
     assert response.status_code == 404
+    assert response.get_json()["error_message"] == "Category_id not found."
 
 
-def test_get_items_invalid_access_token(client, session):
-    expired_token = (
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4NjE5"
-        "NzMxOCwianRpIjoiN2QzMWUyM2UtMmU3MC00"
-        "ODlmLTkwNWEtNDE0ZDI5MjM4NTM4IiwidHlw"
-        "ZSI6ImFjY2VzcyIsInN1YiI6MjUsIm5iZiI6"
-        "MTY4NjE5NzMxOCwiZXhwIjoxNjg2MTk4MjE4"
-        "fQ.Dj0EKAS0zjz3EbWKEIdReKdrduMPy3RPE"
-        "UDVg_bEA-k"
-    )
-    headers = {"Authorization": f"Bearer {expired_token}"}
-
+def test_get_items_failed_invalid_access_token(
+    client, get_fixture_invalid_access_token
+):
+    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
     response = client.get("/items", headers=headers)
     assert response.status_code == 401
 
 
-def test_get_item_successfully(client, session):
-    # assert success request
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_get_item_successfully@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_get_item_successfully"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    response = client.post(
-        "/items",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "name": "test_get_item_successfully",
-            "description": "description",
-            "category_id": category_id,
-        },
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    item_id = response.get_json()["id"]
-
-    response = client.get(f"/items/{item_id}")
+def test_get_item_successfully_with_nothing(
+    client, get_fixture_item, get_fixture_category
+):
+    response = client.get(f"/items/{get_fixture_item.id}")
     response_json = response.get_json()
+
     assert response.status_code == 200
     assert "id" in response_json
     assert "name" in response_json
     assert "description" in response_json
     assert "category_id" in response_json
     assert "is_creator" in response_json
+    assert response_json["name"] == "fixture_item"
+    assert response_json["description"] == "Item description"
+    assert response_json["category_id"] == get_fixture_category.id
+    assert response_json["is_creator"] is False
 
 
-def test_get_item_invalid_access_token(client, session):
-    expired_token = (
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4NjE5"
-        "NzMxOCwianRpIjoiN2QzMWUyM2UtMmU3MC00"
-        "ODlmLTkwNWEtNDE0ZDI5MjM4NTM4IiwidHlw"
-        "ZSI6ImFjY2VzcyIsInN1YiI6MjUsIm5iZiI6"
-        "MTY4NjE5NzMxOCwiZXhwIjoxNjg2MTk4MjE4"
-        "fQ.Dj0EKAS0zjz3EbWKEIdReKdrduMPy3RPE"
-        "UDVg_bEA-k"
+def test_get_item_successfully_with_valid_access_token(
+    client, get_fixture_valid_access_token_user_1, get_fixture_item
+):
+    response = client.get(
+        f"/items/{get_fixture_item.id}",
+        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
     )
-    headers = {"Authorization": f"Bearer {expired_token}"}
+    response_json = response.get_json()
 
-    response = client.get("/items/20", headers=headers)
+    assert response.status_code == 200
+    assert "id" in response_json
+    assert "name" in response_json
+    assert "description" in response_json
+    assert "category_id" in response_json
+    assert "is_creator" in response_json
+    assert response_json["is_creator"] is True
+
+
+def test_get_item_failed_invalid_access_token(
+    client, session, get_fixture_invalid_access_token, get_fixture_item
+):
+    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
+    response = client.get(f"/items/{get_fixture_item.id}", headers=headers)
     assert response.status_code == 401
 
 
-def test_get_item_invalid_item_id(client, session):
-    response = client.get("/items/20a")
-    assert response.status_code == 404
-
-    response = client.get(f"/items/{-29}")
-    assert response.status_code == 404
-
-
-def test_get_item_not_found_item_id(client, session):
-    response = client.get(f"/items/{10000}")
+@pytest.mark.parametrize("test_input", ["20a", -20, 10000])
+def test_get_item_failed_item_id_not_found(test_input, client):
+    response = client.get(f"/items/{test_input}")
     assert response.status_code == 404
 
 
-def test_post_items_successfully(client, session):
-    # assert successful request
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_successfully@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_post_items_successfully"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
+def test_post_items_successfully(
+    client, get_fixture_valid_access_token_user_1, get_fixture_category
+):
     response = client.post(
         "/items",
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
         json={
             "name": "test_post_items_successfully",
             "description": "description",
-            "category_id": category_id,
+            "category_id": get_fixture_category.id,
         },
     )
+
     assert response.status_code == 200
     response_json = response.get_json()
     assert "id" in response_json
@@ -210,628 +179,364 @@ def test_post_items_successfully(client, session):
     assert "description" in response_json
     assert "category_id" in response_json
     assert "is_creator" in response_json
+    assert response_json["name"] == "test_post_items_successfully"
+    assert response_json["description"] == "description"
+    assert response_json["category_id"] == get_fixture_category.id
+    assert response_json["is_creator"] is True
 
 
-def test_post_items_invalid_name(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_invalid_name@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_post_items_invalid_name"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-    json = {"name": "", "description": "description", "category_id": category_id}
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = None
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = "      "
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = "a" * 256
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-
-def test_post_items_invalid_description(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_invalid_description@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_post_items_invalid_description"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("", "Length must be between 1 and 255."),
+        ("      ", "Length must be between 1 and 255."),
+        ("a" * 256, "Length must be between 1 and 255."),
+    ],
+)
+def test_post_items_failed_invalid_name_format(
+    test_input,
+    expected_message,
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_category,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_post_items_invalid_description",
-        "description": "",
-        "category_id": category_id,
+        "name": test_input,
+        "description": "description",
+        "category_id": get_fixture_category.id,
     }
-
     response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
     response_json = response.get_json()
-    assert "description" in response_json["error_data"]
 
-    json["description"] = None
-    response = client.post("/items", headers=headers, json=json)
     assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
-
-    json["description"] = "      "
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
-
-    json["description"] = "a" * 1025
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
+    assert "name" in response_json["error_data"]
+    assert response_json["error_data"]["name"][0] == expected_message
 
 
-def test_post_items_invalid_category_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_invalid_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_post_items_invalid_category_id"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("", "Length must be between 1 and 1024."),
+        ("      ", "Length must be between 1 and 1024."),
+        ("a" * 1025, "Length must be between 1 and 1024."),
+    ],
+)
+def test_post_items_failed_invalid_description_format(
+    test_input,
+    expected_message,
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_category,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_post_items_invalid_category_id",
-        "description": "test - test_post_items_invalid_category_id",
-        "category_id": None,
+        "name": "test_post_items_failed_invalid_description_format",
+        "description": test_input,
+        "category_id": get_fixture_category.id,
     }
-
     response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
     response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
 
-    json["category_id"] = "20a"
-    response = client.post("/items", headers=headers, json=json)
     assert response.status_code == 400
-    response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
-
-    json["category_id"] = "20"
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
-
-    json["category_id"] = -20
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
+    assert "description" in response_json["error_data"]
+    assert response_json["error_data"]["description"][0] == expected_message
 
 
-def test_post_items_not_found_category_id(client, session):  # category_id not found
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_not_found_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("        ", "Not a valid integer."),
+        ("20a", "Not a valid integer."),
+        ("-20", "Not a valid integer."),
+        ("20", "Not a valid integer."),
+    ],
+)
+def test_post_items_failed_invalid_category_id_format(
+    test_input, expected_message, client, get_fixture_valid_access_token_user_1, session
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_post_items_invalid_category_id",
-        "description": "test - test_post_items_invalid_category_id",
+        "name": "test_post_items_failed_invalid_category_id_format",
+        "description": "test_post_items_failed_invalid_category_id_format",
+        "category_id": test_input,
+    }
+    response = client.post("/items", headers=headers, json=json)
+    response_json = response.get_json()
+
+    assert response.status_code == 400
+    assert "category_id" in response_json["error_data"]
+    assert response_json["error_data"]["category_id"][0] == expected_message
+
+
+def test_post_items_failed_category_id_not_found(
+    client, session, get_fixture_valid_access_token_user_1
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    json = {
+        "name": "test_post_items_failed_category_id_not_found",
+        "description": "test_post_items_failed_category_id_not_found",
         "category_id": 10000,
     }
-
     response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 400  # convert to 400
+    assert response.status_code == 400
+    assert response.get_json()["error_message"] == "Category_id not found."
 
 
-def test_post_items_duplicate_item_name(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_post_items_duplicate_item_name@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_post_items_duplicate_item_name"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+def test_post_items_failed_item_name_existed(
+    client, get_fixture_valid_access_token_user_1, get_fixture_category, session
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_post_items_duplicate_item_name",
-        "description": "test - test_post_items_duplicate_item_name",
-        "category_id": category_id,
+        "name": "fixture_item",
+        "description": "test_post_items_failed_item_name_existed",
+        "category_id": get_fixture_category.id,
     }
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 200
 
     response = client.post("/items", headers=headers, json=json)
     assert response.status_code == 400
     assert "name" in response.get_json()["error_data"]
+    assert (
+        response.get_json()["error_data"]["name"][0]
+        == "Name already belong to another item."
+    )
 
 
-def test_delete_items_successfully(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_items_successfully@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_delete_items_successfully"},
+def test_delete_items_successfully(
+    client,
+    session,
+    get_fixture_valid_access_token_user_1,
+    get_item_for_delete_successfully,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    response = client.delete(
+        f"/items/{get_item_for_delete_successfully.id}", headers=headers
     )
     assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-    json = {
-        "name": "test - test_delete_items_successfully",
-        "description": "test - test_delete_items_successfully",
-        "category_id": category_id,
-    }
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    item_id = response.get_json()["id"]
-
-    response = client.delete(f"/items/{item_id}", headers=headers)
-    assert response.status_code == 200
 
 
-def test_delete_items_invalid_item_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_items_invalid_item_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = client.delete("/items/20a", headers=headers)
-    assert response.status_code == 404
-
-    response = client.delete(f"/items/{-20}", headers=headers)
+@pytest.mark.parametrize("test_input", ["20a", -20, 10000])
+def test_delete_items_failed_item_id_not_found(
+    test_input, client, get_fixture_valid_access_token_user_1
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    response = client.delete(f"/items/{test_input}", headers=headers)
     assert response.status_code == 404
 
 
-def test_delete_items_not_found_item_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_items_not_found_item_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = client.delete(f"/items/{2000}", headers=headers)
-    assert response.status_code == 404
-
-
-def test_delete_items_forbidden(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_items_forbidden@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    forbidden_token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_items_forbidden123@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_delete_items_forbidden"},
+def test_delete_items_failed_forbidden(
+    client, get_fixture_valid_access_token_user_2, get_item_for_delete_forbidden
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
+    response = client.delete(
+        f"/items/{get_item_for_delete_forbidden.id}", headers=headers
     )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-    json = {
-        "name": "test - test_delete_items_forbidden",
-        "description": "test - test_delete_items_forbidden",
-        "category_id": category_id,
-    }
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    item_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {forbidden_token}"}
-    response = client.delete(f"/items/{item_id}", headers=headers)
     assert response.status_code == 403
 
 
-def test_delete_items_invalid_access_token(client, session):
-    expired_token = (
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4NjE5"
-        "NzMxOCwianRpIjoiN2QzMWUyM2UtMmU3MC00"
-        "ODlmLTkwNWEtNDE0ZDI5MjM4NTM4IiwidHlw"
-        "ZSI6ImFjY2VzcyIsInN1YiI6MjUsIm5iZiI6"
-        "MTY4NjE5NzMxOCwiZXhwIjoxNjg2MTk4MjE4"
-        "fQ.Dj0EKAS0zjz3EbWKEIdReKdrduMPy3RPE"
-        "UDVg_bEA-k"
-    )
-    headers = {"Authorization": f"Bearer {expired_token}"}
+def test_delete_items_failed_invalid_access_token(
+    client, get_fixture_invalid_access_token, get_fixture_item
+):
+    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
 
-    response = client.delete("/items/20")
+    response = client.delete(f"/items/{get_fixture_item.id}")
     assert response.status_code == 401
 
-    response = client.delete("/items/20", headers=headers)
+    response = client.delete(f"/items/{get_fixture_item.id}", headers=headers)
     assert response.status_code == 401
 
 
-######################
-def test_put_items_successfully(client, session):
-    # assert successful request
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_successfully@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_successfully"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    response = client.post(
-        "/items",
-        headers={"Authorization": f"Bearer {token}"},
+def test_put_items_successfully(
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_item_for_update_successfully,
+    get_fixture_category,
+):
+    response = client.put(
+        f"/items/{get_item_for_update_successfully.id}",
+        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
         json={
             "name": "test_put_items_successfully",
-            "description": "description",
-            "category_id": category_id,
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.get_json()
-    assert "id" in response_json
-    assert "name" in response_json
-    assert "description" in response_json
-    assert "category_id" in response_json
-    assert "is_creator" in response_json
-
-    item_id = response_json["id"]
-    response = client.put(
-        f"/items/{item_id}",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "name": "test_put_items_successfully123",
             "description": "description123",
-            "category_id": category_id,
+            "category_id": get_fixture_category.id,
         },
     )
-    assert response.status_code == 200
     response_json = response.get_json()
+
+    assert response.status_code == 200
     assert "id" in response_json
     assert "name" in response_json
     assert "description" in response_json
     assert "category_id" in response_json
     assert "is_creator" in response_json
+    assert response_json["name"] == "test_put_items_successfully"
+    assert response_json["description"] == "description123"
+    assert response_json["is_creator"] is True
 
 
-def test_put_items_invalid_name(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_invalid_name@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_invalid_name"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-    json = {"name": "", "description": "description", "category_id": category_id}
-
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = None
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = "      "
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-    json["name"] = "a" * 256
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "name" in response_json["error_data"]
-
-
-def test_put_items_invalid_description(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_invalid_description@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_invalid_description"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("", "Length must be between 1 and 255."),
+        ("      ", "Length must be between 1 and 255."),
+        ("a" * 256, "Length must be between 1 and 255."),
+    ],
+)
+def test_put_items_failed_invalid_name_format(
+    test_input,
+    expected_message,
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_category,
+    get_fixture_item,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test_put_items_invalid_description",
-        "description": "",
-        "category_id": category_id,
+        "name": test_input,
+        "description": "description",
+        "category_id": get_fixture_category.id,
+    }
+    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response_json = response.get_json()
+
+    assert response.status_code == 400
+    assert "name" in response_json["error_data"]
+    assert response_json["error_data"]["name"][0] == expected_message
+
+
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("", "Length must be between 1 and 1024."),
+        ("      ", "Length must be between 1 and 1024."),
+        ("a" * 1025, "Length must be between 1 and 1024."),
+    ],
+)
+def test_put_items_failed_invalid_description_format(
+    test_input,
+    expected_message,
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_category,
+    get_fixture_item,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    json = {
+        "name": "test_put_items_failed_invalid_description_format",
+        "description": test_input,
+        "category_id": get_fixture_category.id,
     }
 
-    response = client.put("/items/20", headers=headers, json=json)
+    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
     assert response.status_code == 400
     response_json = response.get_json()
     assert "description" in response_json["error_data"]
-
-    json["description"] = None
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
-
-    json["description"] = "      "
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
-
-    json["description"] = "a" * 1025
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "description" in response_json["error_data"]
+    assert response_json["error_data"]["description"][0] == expected_message
 
 
-def test_put_items_invalid_category_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_invalid_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_invalid_category_id"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+@pytest.mark.parametrize(
+    "test_input, expected_message",
+    [
+        (None, "Field may not be null."),
+        ("        ", "Not a valid integer."),
+        ("20a", "Not a valid integer."),
+        ("-20", "Not a valid integer."),
+        ("20", "Not a valid integer."),
+    ],
+)
+def test_put_items_failed_invalid_category_id_format(
+    test_input,
+    expected_message,
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_item,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_put_items_invalid_category_id",
-        "description": "test - test_put_items_invalid_category_id",
-        "category_id": None,
+        "name": "test_put_items_failed_invalid_category_id_format",
+        "description": "test_put_items_failed_invalid_category_id_format",
+        "category_id": test_input,
     }
-
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
+    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
     response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
 
-    json["category_id"] = "20a"
-    response = client.put("/items/20", headers=headers, json=json)
     assert response.status_code == 400
-    response_json = response.get_json()
     assert "category_id" in response_json["error_data"]
-
-    json["category_id"] = "20"
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
-
-    json["category_id"] = -20
-    response = client.put("/items/20", headers=headers, json=json)
-    assert response.status_code == 400
-    response_json = response.get_json()
-    assert "category_id" in response_json["error_data"]
+    assert response_json["error_data"]["category_id"][0] == expected_message
 
 
-def test_put_items_not_found_category_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_not_found_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_not_found_category_id"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+def test_put_items_failed_category_id_not_found(
+    client, get_fixture_valid_access_token_user_1, get_fixture_item, session
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_put_items_not_found_category_id",
-        "description": "test - test_put_items_not_found_category_id",
+        "name": "test_put_items_failed_category_id_not_found",
+        "description": "test_put_items_failed_category_id_not_found",
         "category_id": 10000,
     }
+    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    assert response.status_code == 400
+    assert response.get_json()["error_message"] == "Category_id not found."
 
-    response = client.put("/items/20", headers=headers, json=json)
+
+@pytest.mark.parametrize("test_input", ["20a", -20, 10000])
+def test_put_items_failed_item_id_not_found(
+    test_input, client, get_fixture_valid_access_token_user_1, session
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    response = client.put(f"/items/{test_input}", headers=headers)
     assert response.status_code == 404
 
 
-def test_put_items_not_found_item_name(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_duplicate_item_name@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_duplicate_item_name"},
-    )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+def test_put_items_failed_item_name_existed(
+    client,
+    get_fixture_valid_access_token_user_1,
+    get_fixture_item,
+    get_item_for_update_failed_item_name_existed,
+    get_fixture_category,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {
-        "name": "test - test_put_items_duplicate_item_name",
-        "description": "test - test_put_items_duplicate_item_name",
-        "category_id": category_id,
+        "name": get_fixture_item.name,
+        "description": "test_put_items_failed_item_name_existed",
+        "category_id": get_fixture_category.id,
     }
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 200
-
-    response = client.put(f"/items/{100000}", headers=headers, json=json)
-    assert response.status_code == 404
-
-
-def test_put_items_forbidden(client, session):
-    token = client.post(
-        "/users",
-        json={"email": "test_put_items_forbidden@gmail.com", "password": "Password123"},
-    ).get_json()["access_token"]
-
-    forbidden_token = client.post(
-        "/users",
-        json={
-            "email": "test_put_items_forbidden123@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    response = client.post(
-        "/categories",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": "test_put_items_forbidden"},
+    response = client.put(
+        f"/items/{get_item_for_update_failed_item_name_existed.id}",
+        headers=headers,
+        json=json,
     )
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
 
-    headers = {"Authorization": f"Bearer {token}"}
+    assert response.status_code == 400
+    assert (
+        response.get_json()["error_data"]["name"][0]
+        == "Item's name has already exists."
+    )
+
+
+def test_put_items_failed_forbidden(
+    client,
+    get_fixture_valid_access_token_user_2,
+    get_fixture_category,
+    get_fixture_item,
+    session,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
     json = {
-        "name": "test - test_put_items_forbidden",
-        "description": "test - test_put_items_forbidden",
-        "category_id": category_id,
+        "name": "test_put_items_failed_forbidden",
+        "description": "test_put_items_failed_forbidden",
+        "category_id": get_fixture_category.id,
     }
-
-    response = client.post("/items", headers=headers, json=json)
-    assert response.status_code == 200
-
-    item_id = response.get_json()["id"]
-    headers = {"Authorization": f"Bearer {forbidden_token}"}
-    response = client.put(f"/items/{item_id}", headers=headers, json=json)
+    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
     assert response.status_code == 403

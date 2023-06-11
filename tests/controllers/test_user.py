@@ -2,7 +2,7 @@ import pytest
 
 
 def test_create_user_invalid_methods(client, session):
-    # assert not support methods
+    # assert not supported methods
     response = client.get("/users")
     assert response.status_code == 405
 
@@ -14,7 +14,6 @@ def test_create_user_invalid_methods(client, session):
 
 
 def test_create_user_successfully(client, session):
-    # assert successful request
     response = client.post(
         "/users",
         json={
@@ -26,8 +25,7 @@ def test_create_user_successfully(client, session):
     assert "access_token" in response.get_json()
 
 
-def test_create_user_failed_email_exist(client, session):
-    # assert successful request
+def test_create_user_failed_email_existed(client, session):
     response = client.post(
         "/users",
         json={
@@ -43,10 +41,9 @@ def test_create_user_failed_email_exist(client, session):
 
 
 def test_create_user_failed_invalid_json_body(client, session):
-    # assert request body not json
     response = client.post("/users", json=None)
     assert response.status_code == 400
-    assert response.get_json()["error_message"] == "Request's body is not a json."
+    assert response.get_json()["error_message"] == "Request's body is not a valid json."
 
 
 @pytest.mark.parametrize(
@@ -64,6 +61,7 @@ def test_create_user_failed_invalid_json_body(client, session):
             "       ",
             "Length of password must in range 6-30.",
         ),  # White-space is stripped
+        (1234, "Password must be a string."),  # Password is not a string
     ],
 )
 def test_create_user_failed_invalid_password_format(
@@ -90,7 +88,6 @@ def test_create_user_failed_invalid_password_format(
 def test_create_user_failed_invalid_email_format(
     test_input, expected_message, client, session
 ):
-    # assert request with invalid email
     json = {"email": test_input, "password": "Password123"}
     response = client.post("/users", json=json)
 

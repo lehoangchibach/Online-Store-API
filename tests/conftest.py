@@ -15,6 +15,7 @@ from main import db
 from main.libs.log import ServiceLogger
 from main.models.base import BaseModel
 from main.models.category import CategoryModel
+from main.models.item import ItemModel
 from main.models.user import UserModel
 
 logger = ServiceLogger(__name__)
@@ -91,7 +92,7 @@ def create_fixture_users():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def create_fixture_category(create_fixture_users):
+def create_fixture_categories(create_fixture_users):
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
 
     category_names = [
@@ -102,6 +103,33 @@ def create_fixture_category(create_fixture_users):
     for name in category_names:
         category = CategoryModel(name=name, creator_id=user.id)
         db.session.add(category)
+
+    db.session.commit()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def create_fixture_items(create_fixture_users, create_fixture_categories):
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    category_id = (
+        db.session.query(CategoryModel).filter_by(name="fixture_category").first().id
+    )
+    item_names = [
+        "fixture_item",
+        "item_for_delete_successfully",
+        "item_for_update_successfully",
+        "item_for_update_failed_item_name_existed",
+        "item_for_delete_failed_forbidden",
+    ]
+    item_descriptions = "Item description"
+
+    for name in item_names:
+        item = ItemModel(
+            name=name,
+            description=item_descriptions,
+            category_id=category_id,
+            creator_id=user.id,
+        )
+        db.session.add(item)
 
     db.session.commit()
 
@@ -123,19 +151,6 @@ def get_fixture_valid_access_token_user_2():
 
 
 @pytest.fixture
-def get_fixture_invalid_access_token():
-    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
-    return create_access_token(
-        identity=user.id, expires_delta=datetime.timedelta(seconds=-1)
-    )
-
-
-@pytest.fixture
-def get_fixture_category():
-    return db.session.query(CategoryModel).filter_by(name="fixture_category").first()
-
-
-@pytest.fixture
 def get_category_for_delete_successfully(create_fixture_users):
     return (
         db.session.query(CategoryModel)
@@ -149,5 +164,59 @@ def get_category_for_delete_failed_forbidden(create_fixture_users):
     return (
         db.session.query(CategoryModel)
         .filter_by(name="category_for_delete_failed_forbidden")
+        .first()
+    )
+
+
+@pytest.fixture
+def get_fixture_invalid_access_token():
+    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    return create_access_token(
+        identity=user.id, expires_delta=datetime.timedelta(seconds=-1)
+    )
+
+
+@pytest.fixture
+def get_fixture_category():
+    return db.session.query(CategoryModel).filter_by(name="fixture_category").first()
+
+
+@pytest.fixture
+def get_fixture_item():
+    return db.session.query(ItemModel).filter_by(name="fixture_item").first()
+
+
+@pytest.fixture
+def get_item_for_delete_successfully(create_fixture_users):
+    return (
+        db.session.query(ItemModel)
+        .filter_by(name="item_for_delete_successfully")
+        .first()
+    )
+
+
+@pytest.fixture
+def get_item_for_delete_forbidden(create_fixture_users):
+    return (
+        db.session.query(ItemModel)
+        .filter_by(name="item_for_delete_failed_forbidden")
+        .first()
+    )
+
+
+@pytest.fixture
+def get_item_for_update_successfully(create_fixture_users):
+    return (
+        db.session.query(ItemModel)
+        .filter_by(name="item_for_update_successfully")
+        .first()
+    )
+
+
+@pytest.fixture
+def get_item_for_update_failed_item_name_existed(create_fixture_users):
+    return (
+        db.session.query(ItemModel)
+        .filter_by(name="item_for_update_failed_item_name_existed")
         .first()
     )
