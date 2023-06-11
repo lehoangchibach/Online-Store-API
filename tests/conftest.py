@@ -93,14 +93,32 @@ def create_fixture_users():
 @pytest.fixture(scope="session", autouse=True)
 def create_fixture_category(create_fixture_users):
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
-    category = CategoryModel(name="fixture_category", creator_id=user.id)
-    db.session.add(category)
+
+    category_names = [
+        "fixture_category",
+        "category_for_delete_successfully",
+        "category_for_delete_failed_forbidden",
+    ]
+    for name in category_names:
+        category = CategoryModel(name=name, creator_id=user.id)
+        db.session.add(category)
+
     db.session.commit()
 
 
 @pytest.fixture
-def get_fixture_valid_access_token():
+def get_fixture_valid_access_token_user_1():
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
+    return create_access_token(identity=user.id)
+
+
+@pytest.fixture
+def get_fixture_valid_access_token_user_2():
+    user = (
+        db.session.query(UserModel)
+        .filter_by(email="second_testemail@gmail.com")
+        .first()
+    )
     return create_access_token(identity=user.id)
 
 
@@ -114,21 +132,22 @@ def get_fixture_invalid_access_token():
 
 @pytest.fixture
 def get_fixture_category():
-    category = (
-        db.session.query(CategoryModel).filter_by(name="fixture_category").first()
-    )
-    return category
+    return db.session.query(CategoryModel).filter_by(name="fixture_category").first()
 
 
 @pytest.fixture
-def create_category_for_delete(create_fixture_users):
-    user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
-    category_names = ["create_category_for_delete1", "create_category_for_delete2"]
-    categories = []
-    for name in category_names:
-        category = CategoryModel(name=name, creator_id=user.id)
-        categories.append(category)
-        db.session.add(category)
-    db.session.commit()
+def get_category_for_delete_successfully(create_fixture_users):
+    return (
+        db.session.query(CategoryModel)
+        .filter_by(name="category_for_delete_successfully")
+        .first()
+    )
 
-    return [category.id for category in categories]
+
+@pytest.fixture
+def get_category_for_delete_failed_forbidden(create_fixture_users):
+    return (
+        db.session.query(CategoryModel)
+        .filter_by(name="category_for_delete_failed_forbidden")
+        .first()
+    )

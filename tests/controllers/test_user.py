@@ -26,6 +26,22 @@ def test_create_user_successfully(client, session):
     assert "access_token" in response.get_json()
 
 
+def test_create_user_failed_email_exist(client, session):
+    # assert successful request
+    response = client.post(
+        "/users",
+        json={
+            "email": "testemail@gmail.com",
+            "password": "Password123",
+        },
+    )
+    assert response.status_code == 400
+    assert (
+        response.get_json()["error_message"]
+        == "Email already belong to another account."
+    )
+
+
 def test_create_user_failed_invalid_json_body(client, session):
     # assert request body not json
     response = client.post("/users", json=None)

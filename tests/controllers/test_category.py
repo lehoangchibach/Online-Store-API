@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_get_categories_successfully(client):
+def test_get_categories_successfully_with_nothing(client):
     # assert success request
     response = client.get("/categories")
     response_json = response.get_json()
@@ -13,7 +13,7 @@ def test_get_categories_successfully(client):
     assert response_json["page"] == 1
 
 
-def test_get_categories_successfully_with_query_string(client):
+def test_get_categories_successfully_with_query_parameters(client):
     # assert success request
     response = client.get(
         "/categories",
@@ -30,11 +30,11 @@ def test_get_categories_successfully_with_query_string(client):
 
 
 def test_get_categories_successfully_with_access_token(
-    client, get_fixture_valid_access_token
+    client, get_fixture_valid_access_token_user_1
 ):
     response = client.get(
         "/categories",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token}"},
+        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
     )
     assert response.status_code == 200
 
@@ -76,11 +76,13 @@ def test_get_categories_invalid_items_per_page_parameter(
     assert response_json["error_data"]["items_per_page"][0] == expected_message
 
 
-def test_post_categories_successfully(client, session, get_fixture_valid_access_token):
+def test_post_categories_successfully(
+    client, session, get_fixture_valid_access_token_user_1
+):
     # assert successful request
     response = client.post(
         "/categories",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token}"},
+        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
         json={"name": "test_post_categories_successfully"},
     )
     response_json = response.get_json()
@@ -103,9 +105,9 @@ def test_post_categories_successfully(client, session, get_fixture_valid_access_
     ],
 )
 def test_post_categories_invalid_name(
-    test_input, expected_message, client, get_fixture_valid_access_token
+    test_input, expected_message, client, get_fixture_valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token}"}
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
 
     response = client.post("/categories", headers=headers, json=test_input)
     response_json = response.get_json()
@@ -116,9 +118,9 @@ def test_post_categories_invalid_name(
 
 
 def test_post_categories_duplicate_name(
-    client, get_fixture_category, get_fixture_valid_access_token
+    client, get_fixture_category, get_fixture_valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token}"}
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
     json = {"name": get_fixture_category.name}
 
     response = client.post("/categories", headers=headers, json=json)
@@ -143,17 +145,17 @@ def test_post_categories_invalid_access_token(client, get_fixture_invalid_access
 
 
 def test_delete_categories_successfully(
-    client, get_fixture_valid_access_token, create_category_for_delete
+    client, get_fixture_valid_access_token_user_1, get_category_for_delete_successfully
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token}"}
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
 
     response = client.delete(
-        f"/categories/{create_category_for_delete[0]}", headers=headers
+        f"/categories/{get_category_for_delete_successfully.id}", headers=headers
     )
     assert response.status_code == 200
 
 
-def test_delete_categories_invalid_access_token(
+def test_delete_categories_failed_invalid_access_token(
     client, get_fixture_invalid_access_token
 ):
     headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
@@ -165,16 +167,10 @@ def test_delete_categories_invalid_access_token(
     assert response.status_code == 401
 
 
-def test_delete_categories_invalid_category_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_categories_invalid_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
+def test_delete_categories_failed_category_id_not_found(
+    client, get_fixture_valid_access_token_user_1
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
 
     response = client.delete("/categories/20a", headers=headers)
     assert response.status_code == 404
@@ -182,47 +178,17 @@ def test_delete_categories_invalid_category_id(client, session):
     response = client.delete("/categories/-20", headers=headers)
     assert response.status_code == 404
 
-
-def test_delete_categories_not_found_category_id(client, session):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_categories_not_found_category_id@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = client.delete(f"/categories/{0}", headers=headers)
+    response = client.delete("/categories/10000", headers=headers)
     assert response.status_code == 404
 
 
-def test_delete_categories_forbidden(client):
-    token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_categories_forbidden@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    forbidden_token = client.post(
-        "/users",
-        json={
-            "email": "test_delete_categories_forbidden123@gmail.com",
-            "password": "Password123",
-        },
-    ).get_json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {token}"}
-    json = {"name": "test_delete_categories_forbidden"}
-
-    response = client.post("/categories", headers=headers, json=json)
-    assert response.status_code == 200
-    assert "id" in response.get_json()
-    category_id = response.get_json()["id"]
-
-    headers = {"Authorization": f"Bearer {forbidden_token}"}
-    response = client.delete(f"/categories/{category_id}", headers=headers)
+def test_delete_categories_forbidden(
+    client,
+    get_category_for_delete_failed_forbidden,
+    get_fixture_valid_access_token_user_2,
+):
+    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
+    response = client.delete(
+        f"/categories/{get_category_for_delete_failed_forbidden.id}", headers=headers
+    )
     assert response.status_code == 403
