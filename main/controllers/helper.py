@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 from flask import Request
 from marshmallow import ValidationError
@@ -8,7 +8,7 @@ from main.commons.exceptions import BadRequest
 from main.schemas.base import BaseSchema
 
 
-def load_json(schema: BaseSchema, request: Request) -> Dict[str, Any]:
+def load_json(schema: Type[BaseSchema], request: Request) -> Dict[str, Any]:
     try:
         if request.method == "GET":
             data = schema.load(request.args)
