@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_get_items_successfully_with_nothing(client):
+def test_get_items_successfully(client):
     response = client.get("/items")
     response_json = response.get_json()
     assert response.status_code == 200
@@ -109,9 +109,7 @@ def test_get_items_failed_invalid_access_token(
     assert response.status_code == 401
 
 
-def test_get_item_successfully_with_nothing(
-    client, get_fixture_item, get_fixture_category
-):
+def test_get_item_successfully(client, get_fixture_item, get_fixture_category):
     response = client.get(f"/items/{get_fixture_item.id}")
     response_json = response.get_json()
 

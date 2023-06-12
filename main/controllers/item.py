@@ -1,4 +1,3 @@
-from flask import request
 from flask_jwt_extended import jwt_required
 
 from main import app
@@ -7,25 +6,25 @@ from main.db import session
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
 from main.schemas import (
-    ItemDumpSchema,
-    ItemLoadSchema,
-    ItemsDumpSchema,
-    ItemsLoadSchema,
+    ItemCreateSchema,
+    ItemSchema,
+    ItemsGetManySchema,
+    ItemsSchema,
+    ItemUpdateSchema,
 )
 
-from ..commons.decorators import get_by_id, get_identity
-from .helper import load_json
+from ..commons.decorators import get_by_id, get_identity, load_json
 
 
 @app.get("/items")
 @jwt_required(optional=True)
 @get_identity
-def get_items(identity):
+@load_json(ItemsGetManySchema())
+def get_items(request_data, identity):
     """
     Get all items of a category
     (Optional) Client can provide a JWT access token to determine ownership
     """
-    request_data = load_json(ItemsLoadSchema(), request)
 
     query = session.query(ItemModel)
 
@@ -45,7 +44,7 @@ def get_items(identity):
 
     for item in items:
         item.is_creator = identity == item.creator_id
-    return ItemsDumpSchema().dump(
+    return ItemsSchema().dump(
         {
             "items": items,
             "items_per_page": request_data["items_per_page"],
@@ -59,55 +58,55 @@ def get_items(identity):
 @jwt_required(optional=True)
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def get_item(identity, item, item_id):
+def get_item(identity, item, **__):
     """
     Get information of an item
     (Optional) Client can provide a JWT access token to determine ownership
     """
 
     item.is_creator = identity == item.creator_id
-    return ItemDumpSchema().dump(item)
+    return ItemSchema().dump(item)
 
 
 @app.post("/items")
 @jwt_required()
 @get_identity
-def create_item(identity):
+@load_json(ItemCreateSchema())
+def create_item(request_data, identity):
     """
     Create an item with an associated category_id
     """
-    item_data = load_json(ItemLoadSchema(), request)
-
-    category = session.get(CategoryModel, item_data["category_id"])
+    category = session.get(CategoryModel, request_data["category_id"])
     if not category:
         # category_id not found
         raise BadRequest(error_message="Category_id not found.")
 
-    existing_item = session.query(ItemModel).filter_by(name=item_data["name"]).first()
+    existing_item = (
+        session.query(ItemModel).filter_by(name=request_data["name"]).first()
+    )
     if existing_item:
         raise BadRequest(error_data={"name": ["Name already belong to another item."]})
 
-    item = ItemModel(**item_data, creator_id=identity)
+    item = ItemModel(**request_data, creator_id=identity)
 
     session.add(item)
     session.commit()
 
     item.is_creator = identity == item.creator_id
-    return ItemDumpSchema().dump(item)
+    return ItemSchema().dump(item)
 
 
 @app.put("/items/<int:item_id>")
 @jwt_required()
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def update_item(identity, item, item_id):
+@load_json(ItemUpdateSchema())
+def update_item(request_data, identity, item, **__):
     """
     Update an item
     Must be creator
     """
-    item_data = load_json(ItemLoadSchema(), request)
-
-    category = session.get(CategoryModel, item_data["category_id"])
+    category = session.get(CategoryModel, request_data["category_id"])
     if not category:
         # category_id not found
         raise BadRequest(error_message="Category_id not found.")
@@ -116,26 +115,26 @@ def update_item(identity, item, item_id):
         # action forbidden (not creator)
         raise Forbidden()
 
-    item_with_same_name = (
-        session.query(ItemModel).filter_by(name=item_data["name"]).first()
+    existing_item = (
+        session.query(ItemModel).filter_by(name=request_data["name"]).first()
     )
-    if item_with_same_name and item_with_same_name.id != item.id:
+    if existing_item and existing_item.id != item.id:
         raise BadRequest(error_data={"name": ["Item's name has already exists."]})
 
-    for key, value in item_data.items():
+    for key, value in request_data.items():
         setattr(item, key, value)
 
     session.commit()
 
     item.is_creator = identity == item.creator_id
-    return ItemDumpSchema().dump(item)
+    return ItemSchema().dump(item)
 
 
 @app.delete("/items/<int:item_id>")
 @jwt_required()
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def delete_item(identity, item, item_id):
+def delete_item(identity, item, **__):
     """
     Delete an item
     Must be the creator

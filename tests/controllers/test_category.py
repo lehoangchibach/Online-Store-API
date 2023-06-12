@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_get_categories_successfully_with_nothing(client):
+def test_get_categories_successfully(client):
     response = client.get("/categories")
     response_json = response.get_json()
 
@@ -98,6 +98,7 @@ def test_post_categories_successfully(
         ({"name": ""}, "Length must be between 1 and 255."),
         ({"name": "      "}, "Length must be between 1 and 255."),
         ({"name": "a" * 256}, "Length must be between 1 and 255."),
+        ({"name": 256}, "Not a valid string."),
     ],
 )
 def test_post_categories_failed_invalid_name_format(
