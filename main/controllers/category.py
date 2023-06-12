@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from flask_jwt_extended import jwt_required
 
@@ -20,7 +20,7 @@ from ..commons.decorators import get_by_id, get_identity, load_json
 @jwt_required(optional=True)
 @get_identity
 @load_json(PaginationSchema())
-def get_categories(request_data: dict[str, Any], identity: Optional[int]):
+def get_categories(request_data: dict[str, Any], identity: int | None):
     """
     Get all categories
     (Optional): client can provide a JWT token to determine

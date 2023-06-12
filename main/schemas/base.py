@@ -1,5 +1,5 @@
-from flask import jsonify
-from marshmallow import EXCLUDE, Schema, ValidationError, fields
+from flask import jsonify, request
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, pre_load
 from marshmallow.validate import Range
 
 
@@ -10,11 +10,20 @@ class BaseSchema(Schema):
     def jsonify(self, obj, many=False):
         return jsonify(self.dump(obj, many=many))
 
+    @pre_load
+    def process_input(self, data, **__):
+        if request.method == "GET":
+            return data
+        for key, value in data.items():
+            if isinstance(value, str):
+                data[key] = value.strip()
+        return data
+
 
 class PaginationSchema(BaseSchema):
     items_per_page = fields.Integer(load_default=20, validate=Range(min=1))
     page = fields.Integer(load_default=1, validate=Range(min=1))
-    total_items = fields.Integer(dump_only=True)
+    total_items = fields.Integer()
 
 
 class PasswordField(fields.String):

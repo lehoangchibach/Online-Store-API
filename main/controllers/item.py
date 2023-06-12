@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from flask_jwt_extended import jwt_required
 
@@ -22,7 +22,7 @@ from ..commons.decorators import get_by_id, get_identity, load_json
 @jwt_required(optional=True)
 @get_identity
 @load_json(ItemsGetManySchema())
-def get_items(request_data: dict[str, Any], identity: Optional[int]):
+def get_items(request_data: dict[str, Any], identity: int | None):
     """
     Get all items of a category
     (Optional) Client can provide a JWT access token to determine ownership
@@ -60,7 +60,7 @@ def get_items(request_data: dict[str, Any], identity: Optional[int]):
 @jwt_required(optional=True)
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def get_item(identity: Optional[int], item: type[ItemModel], **__):
+def get_item(identity: int | None, item: type[ItemModel], **__):
     """
     Get information of an item
     (Optional) Client can provide a JWT access token to determine ownership

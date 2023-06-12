@@ -4,5 +4,5 @@ from .base import BaseSchema, PasswordField
 
 
 class UserCreateSchema(BaseSchema):
-    email = fields.Email(required=True, load_only=True)
-    password = PasswordField(required=True, load_only=True)
+    email = fields.Email(required=True)
+    password = PasswordField(required=True)
