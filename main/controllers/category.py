@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from flask_jwt_extended import jwt_required
 
 from main import app
@@ -18,7 +20,7 @@ from ..commons.decorators import get_by_id, get_identity, load_json
 @jwt_required(optional=True)
 @get_identity
 @load_json(PaginationSchema())
-def get_categories(request_data, identity):
+def get_categories(request_data: dict[str, Any], identity: Optional[int]):
     """
     Get all categories
     (Optional): client can provide a JWT token to determine
@@ -48,7 +50,7 @@ def get_categories(request_data, identity):
 @jwt_required()
 @get_identity
 @load_json(CategoryCreateSchema())
-def create_category(request_data, identity):
+def create_category(request_data: dict[str, Any], identity: int):
     """
     Create a category
     """
@@ -73,7 +75,7 @@ def create_category(request_data, identity):
 @jwt_required()
 @get_by_id(CategoryModel, "category_id")
 @get_identity
-def delete_category(identity, item, **__):
+def delete_category(identity: int, item: type[CategoryModel], **__):
     """
     Delete a category
     Must be the creator

@@ -1,5 +1,4 @@
 from functools import wraps
-from typing import Type
 
 from flask import request
 from flask_jwt_extended import get_jwt_identity
@@ -12,7 +11,11 @@ from main.models.base import BaseModel
 from main.schemas.base import BaseSchema
 
 
-def get_by_id(model: Type[BaseModel], path_variable: str):
+def get_by_id(model: type[BaseModel], path_variable: str):
+    """
+    Get an object from database by model and id (path_variable)
+    """
+
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):
@@ -27,7 +30,11 @@ def get_by_id(model: Type[BaseModel], path_variable: str):
     return wrapper
 
 
-def get_identity(func):  # comment out
+def get_identity(func):
+    """
+    Return the identity of user, None if jwt token not found
+    """
+
     @wraps(func)
     def decorator(*args, **kwargs):
         identity = get_jwt_identity()
@@ -37,6 +44,10 @@ def get_identity(func):  # comment out
 
 
 def load_json(schema: type[BaseSchema]):
+    """
+    Load request data through a schema
+    """
+
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):

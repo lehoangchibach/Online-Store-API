@@ -19,6 +19,7 @@ bcrypt = "^4.0.1"
 cryptography = "^41.0.1"
 flask-sqlalchemy = "^3.0.3"
 flask-migrate = "^4.0.4"
+pytest-mock = "^3.10.0"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.2.3"

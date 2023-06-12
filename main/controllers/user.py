@@ -1,3 +1,5 @@
+from typing import Any
+
 import bcrypt
 from flask_jwt_extended import create_access_token
 
@@ -8,12 +10,10 @@ from main.db import session
 from main.models.user import UserModel
 from main.schemas import TokenSchema, UserCreateSchema
 
-# from .helper import load_json
-
 
 @app.post("/users")
 @load_json(UserCreateSchema())
-def create_user(request_data):
+def create_user(request_data: dict[str, Any]):
     """
     Create a new user with unique email address
     """

@@ -1,3 +1,5 @@
+from typing import Any
+
 import bcrypt
 from flask_jwt_extended import create_access_token
 
@@ -13,7 +15,7 @@ from ..schemas.token import TokenLoginSchema
 
 @app.post("/tokens")
 @load_json(TokenLoginSchema())
-def login(request_data):
+def login(request_data: dict[str, Any]):
     """
     Login user and return a JWT access token
     """

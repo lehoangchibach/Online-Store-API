@@ -29,11 +29,11 @@ def test_get_categories_successfully_with_query_parameters(client):
 
 
 def test_get_categories_successfully_with_access_token(
-    client, get_fixture_valid_access_token_user_1
+    client, valid_access_token_user_1
 ):
     response = client.get(
         "/categories",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
     )
     assert response.status_code == 200
 
@@ -73,12 +73,10 @@ def test_get_categories_failed_invalid_items_per_page_parameter(
     assert response_json["error_data"]["items_per_page"][0] == expected_message
 
 
-def test_post_categories_successfully(
-    client, session, get_fixture_valid_access_token_user_1
-):
+def test_post_categories_successfully(client, session, valid_access_token_user_1):
     response = client.post(
         "/categories",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
         json={"name": "test_post_categories_successfully"},
     )
     response_json = response.get_json()
@@ -102,9 +100,9 @@ def test_post_categories_successfully(
     ],
 )
 def test_post_categories_failed_invalid_name_format(
-    test_input, expected_message, client, get_fixture_valid_access_token_user_1
+    test_input, expected_message, client, valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
 
     response = client.post("/categories", headers=headers, json=test_input)
     response_json = response.get_json()
@@ -115,10 +113,10 @@ def test_post_categories_failed_invalid_name_format(
 
 
 def test_post_categories_failed_name_existed(
-    client, get_fixture_category, get_fixture_valid_access_token_user_1
+    client, category, valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
-    json = {"name": get_fixture_category.name}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
+    json = {"name": category.name}
 
     response = client.post("/categories", headers=headers, json=json)
     response_json = response.get_json()
@@ -131,11 +129,9 @@ def test_post_categories_failed_name_existed(
     )
 
 
-def test_post_categories_failed_invalid_access_token(
-    client, get_fixture_invalid_access_token
-):
-    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
-    json = {"name": "test_post_categories_invalid_access_token"}
+def test_post_categories_failed_expired_access_token(client, invalid_access_token):
+    headers = {"Authorization": f"Bearer {invalid_access_token}"}
+    json = {"name": "test_post_categories_failed_expired_access_token"}
 
     response = client.post("/categories", json=json)
     assert response.status_code == 401
@@ -144,21 +140,26 @@ def test_post_categories_failed_invalid_access_token(
     assert response.status_code == 401
 
 
+def test_post_categories_failed_invalid_access_token(client):
+    headers = {"Authorization": "Bearer"}
+    json = {"name": "test_post_categories_failed_invalid_access_token"}
+    response = client.post("/categories", headers=headers, json=json)
+    assert response.status_code == 401
+
+
 def test_delete_categories_successfully(
-    client, get_fixture_valid_access_token_user_1, get_category_for_delete_successfully
+    client, valid_access_token_user_1, category_for_delete_successfully
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
 
     response = client.delete(
-        f"/categories/{get_category_for_delete_successfully.id}", headers=headers
+        f"/categories/{category_for_delete_successfully.id}", headers=headers
     )
     assert response.status_code == 200
 
 
-def test_delete_categories_failed_invalid_access_token(
-    client, get_fixture_invalid_access_token
-):
-    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
+def test_delete_categories_failed_invalid_access_token(client, invalid_access_token):
+    headers = {"Authorization": f"Bearer {invalid_access_token}"}
 
     response = client.delete("/categories/20")
     assert response.status_code == 401
@@ -169,20 +170,34 @@ def test_delete_categories_failed_invalid_access_token(
 
 @pytest.mark.parametrize("test_input", ["20a", -20, 10000])
 def test_delete_categories_failed_category_id_not_found(
-    test_input, client, get_fixture_valid_access_token_user_1
+    test_input, client, valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     response = client.delete(f"/categories/{test_input}", headers=headers)
     assert response.status_code == 404
 
 
 def test_delete_categories_failed_forbidden(
     client,
-    get_category_for_delete_failed_forbidden,
-    get_fixture_valid_access_token_user_2,
+    category_for_delete_failed_forbidden,
+    valid_access_token_user_2,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_2}"}
     response = client.delete(
-        f"/categories/{get_category_for_delete_failed_forbidden.id}", headers=headers
+        f"/categories/{category_for_delete_failed_forbidden.id}", headers=headers
     )
     assert response.status_code == 403
+
+
+def test_delete_categories_failed_internal_server_error(
+    client, valid_access_token_user_1, category_for_delete_failed_forbidden, mocker
+):
+    mocked_delete = mocker.patch("sqlalchemy.orm.session.Session.delete")
+    mocked_delete.side_effect = Exception("Test")
+
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
+    response = client.delete(
+        f"/categories/{category_for_delete_failed_forbidden.id}", headers=headers
+    )
+    assert response.status_code == 500
+    assert response.get_json()["error_message"] == "Internal Server Error."

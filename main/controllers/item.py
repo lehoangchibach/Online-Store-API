@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from flask_jwt_extended import jwt_required
 
 from main import app
@@ -20,7 +22,7 @@ from ..commons.decorators import get_by_id, get_identity, load_json
 @jwt_required(optional=True)
 @get_identity
 @load_json(ItemsGetManySchema())
-def get_items(request_data, identity):
+def get_items(request_data: dict[str, Any], identity: Optional[int]):
     """
     Get all items of a category
     (Optional) Client can provide a JWT access token to determine ownership
@@ -58,7 +60,7 @@ def get_items(request_data, identity):
 @jwt_required(optional=True)
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def get_item(identity, item, **__):
+def get_item(identity: Optional[int], item: type[ItemModel], **__):
     """
     Get information of an item
     (Optional) Client can provide a JWT access token to determine ownership
@@ -72,7 +74,7 @@ def get_item(identity, item, **__):
 @jwt_required()
 @get_identity
 @load_json(ItemCreateSchema())
-def create_item(request_data, identity):
+def create_item(request_data: dict[str, Any], identity: int):
     """
     Create an item with an associated category_id
     """
@@ -101,7 +103,9 @@ def create_item(request_data, identity):
 @get_by_id(ItemModel, "item_id")
 @get_identity
 @load_json(ItemUpdateSchema())
-def update_item(request_data, identity, item, **__):
+def update_item(
+    request_data: dict[str, Any], identity: int, item: type[ItemModel], **__
+):
     """
     Update an item
     Must be creator
@@ -134,7 +138,7 @@ def update_item(request_data, identity, item, **__):
 @jwt_required()
 @get_by_id(ItemModel, "item_id")
 @get_identity
-def delete_item(identity, item, **__):
+def delete_item(identity: int, item: ItemModel, **__):
     """
     Delete an item
     Must be the creator

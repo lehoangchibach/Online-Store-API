@@ -13,9 +13,9 @@ def test_get_items_successfully(client):
     assert response_json["page"] == 1
 
 
-def test_get_items_successfully_with_query_parameters(client, get_fixture_category):
+def test_get_items_successfully_with_query_parameters(client, category):
     query_string = {
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
         "page": 4,
         "items_per_page": 27,
     }
@@ -32,11 +32,11 @@ def test_get_items_successfully_with_query_parameters(client, get_fixture_catego
 
 
 def test_get_items_successfully_with_valid_access_token(
-    client, get_fixture_valid_access_token_user_1
+    client, valid_access_token_user_1
 ):
     response = client.get(
         "/items",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
     )
     response_json = response.get_json()
     assert response.status_code == 200
@@ -101,16 +101,14 @@ def test_get_items_failed_category_id_not_found(client, session):
     assert response.get_json()["error_message"] == "Category_id not found."
 
 
-def test_get_items_failed_invalid_access_token(
-    client, get_fixture_invalid_access_token
-):
-    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
+def test_get_items_failed_invalid_access_token(client, invalid_access_token):
+    headers = {"Authorization": f"Bearer {invalid_access_token}"}
     response = client.get("/items", headers=headers)
     assert response.status_code == 401
 
 
-def test_get_item_successfully(client, get_fixture_item, get_fixture_category):
-    response = client.get(f"/items/{get_fixture_item.id}")
+def test_get_item_successfully(client, item, category):
+    response = client.get(f"/items/{item.id}")
     response_json = response.get_json()
 
     assert response.status_code == 200
@@ -121,16 +119,16 @@ def test_get_item_successfully(client, get_fixture_item, get_fixture_category):
     assert "is_creator" in response_json
     assert response_json["name"] == "fixture_item"
     assert response_json["description"] == "Item description"
-    assert response_json["category_id"] == get_fixture_category.id
+    assert response_json["category_id"] == category.id
     assert response_json["is_creator"] is False
 
 
 def test_get_item_successfully_with_valid_access_token(
-    client, get_fixture_valid_access_token_user_1, get_fixture_item
+    client, valid_access_token_user_1, item
 ):
     response = client.get(
-        f"/items/{get_fixture_item.id}",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        f"/items/{item.id}",
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
     )
     response_json = response.get_json()
 
@@ -144,10 +142,10 @@ def test_get_item_successfully_with_valid_access_token(
 
 
 def test_get_item_failed_invalid_access_token(
-    client, session, get_fixture_invalid_access_token, get_fixture_item
+    client, session, invalid_access_token, item
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
-    response = client.get(f"/items/{get_fixture_item.id}", headers=headers)
+    headers = {"Authorization": f"Bearer {invalid_access_token}"}
+    response = client.get(f"/items/{item.id}", headers=headers)
     assert response.status_code == 401
 
 
@@ -157,16 +155,14 @@ def test_get_item_failed_item_id_not_found(test_input, client):
     assert response.status_code == 404
 
 
-def test_post_items_successfully(
-    client, get_fixture_valid_access_token_user_1, get_fixture_category
-):
+def test_post_items_successfully(client, valid_access_token_user_1, category):
     response = client.post(
         "/items",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
         json={
             "name": "test_post_items_successfully",
             "description": "description",
-            "category_id": get_fixture_category.id,
+            "category_id": category.id,
         },
     )
 
@@ -179,7 +175,7 @@ def test_post_items_successfully(
     assert "is_creator" in response_json
     assert response_json["name"] == "test_post_items_successfully"
     assert response_json["description"] == "description"
-    assert response_json["category_id"] == get_fixture_category.id
+    assert response_json["category_id"] == category.id
     assert response_json["is_creator"] is True
 
 
@@ -196,15 +192,15 @@ def test_post_items_failed_invalid_name_format(
     test_input,
     expected_message,
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_category,
+    valid_access_token_user_1,
+    category,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": test_input,
         "description": "description",
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
     response = client.post("/items", headers=headers, json=json)
     response_json = response.get_json()
@@ -227,15 +223,15 @@ def test_post_items_failed_invalid_description_format(
     test_input,
     expected_message,
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_category,
+    valid_access_token_user_1,
+    category,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_post_items_failed_invalid_description_format",
         "description": test_input,
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
     response = client.post("/items", headers=headers, json=json)
     response_json = response.get_json()
@@ -256,9 +252,9 @@ def test_post_items_failed_invalid_description_format(
     ],
 )
 def test_post_items_failed_invalid_category_id_format(
-    test_input, expected_message, client, get_fixture_valid_access_token_user_1, session
+    test_input, expected_message, client, valid_access_token_user_1, session
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_post_items_failed_invalid_category_id_format",
         "description": "test_post_items_failed_invalid_category_id_format",
@@ -273,9 +269,9 @@ def test_post_items_failed_invalid_category_id_format(
 
 
 def test_post_items_failed_category_id_not_found(
-    client, session, get_fixture_valid_access_token_user_1
+    client, session, valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_post_items_failed_category_id_not_found",
         "description": "test_post_items_failed_category_id_not_found",
@@ -287,13 +283,13 @@ def test_post_items_failed_category_id_not_found(
 
 
 def test_post_items_failed_item_name_existed(
-    client, get_fixture_valid_access_token_user_1, get_fixture_category, session
+    client, valid_access_token_user_1, category, session
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "fixture_item",
         "description": "test_post_items_failed_item_name_existed",
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
 
     response = client.post("/items", headers=headers, json=json)
@@ -308,60 +304,56 @@ def test_post_items_failed_item_name_existed(
 def test_delete_items_successfully(
     client,
     session,
-    get_fixture_valid_access_token_user_1,
-    get_item_for_delete_successfully,
+    valid_access_token_user_1,
+    item_for_delete_successfully,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     response = client.delete(
-        f"/items/{get_item_for_delete_successfully.id}", headers=headers
+        f"/items/{item_for_delete_successfully.id}", headers=headers
     )
     assert response.status_code == 200
 
 
 @pytest.mark.parametrize("test_input", ["20a", -20, 10000])
 def test_delete_items_failed_item_id_not_found(
-    test_input, client, get_fixture_valid_access_token_user_1
+    test_input, client, valid_access_token_user_1
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     response = client.delete(f"/items/{test_input}", headers=headers)
     assert response.status_code == 404
 
 
 def test_delete_items_failed_forbidden(
-    client, get_fixture_valid_access_token_user_2, get_item_for_delete_forbidden
+    client, valid_access_token_user_2, item_for_delete_forbidden
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
-    response = client.delete(
-        f"/items/{get_item_for_delete_forbidden.id}", headers=headers
-    )
+    headers = {"Authorization": f"Bearer {valid_access_token_user_2}"}
+    response = client.delete(f"/items/{item_for_delete_forbidden.id}", headers=headers)
     assert response.status_code == 403
 
 
-def test_delete_items_failed_invalid_access_token(
-    client, get_fixture_invalid_access_token, get_fixture_item
-):
-    headers = {"Authorization": f"Bearer {get_fixture_invalid_access_token}"}
+def test_delete_items_failed_invalid_access_token(client, invalid_access_token, item):
+    headers = {"Authorization": f"Bearer {invalid_access_token}"}
 
-    response = client.delete(f"/items/{get_fixture_item.id}")
+    response = client.delete(f"/items/{item.id}")
     assert response.status_code == 401
 
-    response = client.delete(f"/items/{get_fixture_item.id}", headers=headers)
+    response = client.delete(f"/items/{item.id}", headers=headers)
     assert response.status_code == 401
 
 
 def test_put_items_successfully(
     client,
-    get_fixture_valid_access_token_user_1,
-    get_item_for_update_successfully,
-    get_fixture_category,
+    valid_access_token_user_1,
+    item_for_update_successfully,
+    category,
 ):
     response = client.put(
-        f"/items/{get_item_for_update_successfully.id}",
-        headers={"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"},
+        f"/items/{item_for_update_successfully.id}",
+        headers={"Authorization": f"Bearer {valid_access_token_user_1}"},
         json={
             "name": "test_put_items_successfully",
             "description": "description123",
-            "category_id": get_fixture_category.id,
+            "category_id": category.id,
         },
     )
     response_json = response.get_json()
@@ -390,18 +382,18 @@ def test_put_items_failed_invalid_name_format(
     test_input,
     expected_message,
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_category,
-    get_fixture_item,
+    valid_access_token_user_1,
+    category,
+    item,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": test_input,
         "description": "description",
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
-    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response = client.put(f"/items/{item.id}", headers=headers, json=json)
     response_json = response.get_json()
 
     assert response.status_code == 400
@@ -422,19 +414,19 @@ def test_put_items_failed_invalid_description_format(
     test_input,
     expected_message,
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_category,
-    get_fixture_item,
+    valid_access_token_user_1,
+    category,
+    item,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_put_items_failed_invalid_description_format",
         "description": test_input,
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
 
-    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response = client.put(f"/items/{item.id}", headers=headers, json=json)
     assert response.status_code == 400
     response_json = response.get_json()
     assert "description" in response_json["error_data"]
@@ -455,17 +447,17 @@ def test_put_items_failed_invalid_category_id_format(
     test_input,
     expected_message,
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_item,
+    valid_access_token_user_1,
+    item,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_put_items_failed_invalid_category_id_format",
         "description": "test_put_items_failed_invalid_category_id_format",
         "category_id": test_input,
     }
-    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response = client.put(f"/items/{item.id}", headers=headers, json=json)
     response_json = response.get_json()
 
     assert response.status_code == 400
@@ -474,44 +466,44 @@ def test_put_items_failed_invalid_category_id_format(
 
 
 def test_put_items_failed_category_id_not_found(
-    client, get_fixture_valid_access_token_user_1, get_fixture_item, session
+    client, valid_access_token_user_1, item, session
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
         "name": "test_put_items_failed_category_id_not_found",
         "description": "test_put_items_failed_category_id_not_found",
         "category_id": 10000,
     }
-    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response = client.put(f"/items/{item.id}", headers=headers, json=json)
     assert response.status_code == 400
     assert response.get_json()["error_message"] == "Category_id not found."
 
 
 @pytest.mark.parametrize("test_input", ["20a", -20, 10000])
 def test_put_items_failed_item_id_not_found(
-    test_input, client, get_fixture_valid_access_token_user_1, session
+    test_input, client, valid_access_token_user_1, session
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     response = client.put(f"/items/{test_input}", headers=headers)
     assert response.status_code == 404
 
 
 def test_put_items_failed_item_name_existed(
     client,
-    get_fixture_valid_access_token_user_1,
-    get_fixture_item,
-    get_item_for_update_failed_item_name_existed,
-    get_fixture_category,
+    valid_access_token_user_1,
+    item,
+    item_for_update_failed_item_name_existed,
+    category,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_1}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_1}"}
     json = {
-        "name": get_fixture_item.name,
+        "name": item.name,
         "description": "test_put_items_failed_item_name_existed",
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
     response = client.put(
-        f"/items/{get_item_for_update_failed_item_name_existed.id}",
+        f"/items/{item_for_update_failed_item_name_existed.id}",
         headers=headers,
         json=json,
     )
@@ -525,16 +517,16 @@ def test_put_items_failed_item_name_existed(
 
 def test_put_items_failed_forbidden(
     client,
-    get_fixture_valid_access_token_user_2,
-    get_fixture_category,
-    get_fixture_item,
+    valid_access_token_user_2,
+    category,
+    item,
     session,
 ):
-    headers = {"Authorization": f"Bearer {get_fixture_valid_access_token_user_2}"}
+    headers = {"Authorization": f"Bearer {valid_access_token_user_2}"}
     json = {
         "name": "test_put_items_failed_forbidden",
         "description": "test_put_items_failed_forbidden",
-        "category_id": get_fixture_category.id,
+        "category_id": category.id,
     }
-    response = client.put(f"/items/{get_fixture_item.id}", headers=headers, json=json)
+    response = client.put(f"/items/{item.id}", headers=headers, json=json)
     assert response.status_code == 403

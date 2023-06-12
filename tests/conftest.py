@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import bcrypt
 import pytest
@@ -75,7 +76,7 @@ def client(app):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def create_fixture_users():
+def create_users(create_database):
     user_datas = [
         {"email": "testemail@gmail.com", "password": "Password123"},
         {"email": "second_testemail@gmail.com", "password": "Password123"},
@@ -92,7 +93,7 @@ def create_fixture_users():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def create_fixture_categories(create_fixture_users):
+def create_categories(create_users):
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
 
     category_names = [
@@ -108,7 +109,7 @@ def create_fixture_categories(create_fixture_users):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def create_fixture_items(create_fixture_users, create_fixture_categories):
+def create_items(create_users, create_categories):
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
     category_id = (
         db.session.query(CategoryModel).filter_by(name="fixture_category").first().id
@@ -135,13 +136,13 @@ def create_fixture_items(create_fixture_users, create_fixture_categories):
 
 
 @pytest.fixture
-def get_fixture_valid_access_token_user_1():
+def valid_access_token_user_1():
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
     return create_access_token(identity=user.id)
 
 
 @pytest.fixture
-def get_fixture_valid_access_token_user_2():
+def valid_access_token_user_2():
     user = (
         db.session.query(UserModel)
         .filter_by(email="second_testemail@gmail.com")
@@ -151,7 +152,7 @@ def get_fixture_valid_access_token_user_2():
 
 
 @pytest.fixture
-def get_category_for_delete_successfully(create_fixture_users):
+def category_for_delete_successfully(create_users):
     return (
         db.session.query(CategoryModel)
         .filter_by(name="category_for_delete_successfully")
@@ -160,7 +161,7 @@ def get_category_for_delete_successfully(create_fixture_users):
 
 
 @pytest.fixture
-def get_category_for_delete_failed_forbidden(create_fixture_users):
+def category_for_delete_failed_forbidden(create_users):
     return (
         db.session.query(CategoryModel)
         .filter_by(name="category_for_delete_failed_forbidden")
@@ -169,7 +170,7 @@ def get_category_for_delete_failed_forbidden(create_fixture_users):
 
 
 @pytest.fixture
-def get_fixture_invalid_access_token():
+def invalid_access_token():
     user = db.session.query(UserModel).filter_by(email="testemail@gmail.com").first()
     return create_access_token(
         identity=user.id, expires_delta=datetime.timedelta(seconds=-1)
@@ -177,17 +178,17 @@ def get_fixture_invalid_access_token():
 
 
 @pytest.fixture
-def get_fixture_category():
+def category():
     return db.session.query(CategoryModel).filter_by(name="fixture_category").first()
 
 
 @pytest.fixture
-def get_fixture_item():
+def item():
     return db.session.query(ItemModel).filter_by(name="fixture_item").first()
 
 
 @pytest.fixture
-def get_item_for_delete_successfully(create_fixture_users):
+def item_for_delete_successfully(create_users):
     return (
         db.session.query(ItemModel)
         .filter_by(name="item_for_delete_successfully")
@@ -196,7 +197,7 @@ def get_item_for_delete_successfully(create_fixture_users):
 
 
 @pytest.fixture
-def get_item_for_delete_forbidden(create_fixture_users):
+def item_for_delete_forbidden(create_users):
     return (
         db.session.query(ItemModel)
         .filter_by(name="item_for_delete_failed_forbidden")
@@ -205,7 +206,7 @@ def get_item_for_delete_forbidden(create_fixture_users):
 
 
 @pytest.fixture
-def get_item_for_update_successfully(create_fixture_users):
+def item_for_update_successfully(create_users):
     return (
         db.session.query(ItemModel)
         .filter_by(name="item_for_update_successfully")
@@ -214,9 +215,17 @@ def get_item_for_update_successfully(create_fixture_users):
 
 
 @pytest.fixture
-def get_item_for_update_failed_item_name_existed(create_fixture_users):
+def item_for_update_failed_item_name_existed(create_users):
     return (
         db.session.query(ItemModel)
         .filter_by(name="item_for_update_failed_item_name_existed")
         .first()
     )
+
+
+@pytest.fixture
+def mock_exception_internal_server_error():
+    patch("db.session.delete", side_effect=Exception())
+    mock = Mock()
+    mock.side_effect = Exception()
+    return mock
